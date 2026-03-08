@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # --- MongoDB 服务 ---
+  mongodb:
+    image: mongo:latest
+    container_name: my-mongodb
+    restart: always
+    environment:
+      # 设置管理员账号和密码
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: gyf424201
+    ports:
+      - "62015:27017"
+    volumes:
+      # 将数据持久化到本地目录，防止容器删除后数据丢失
+      - ./mongo-data:/data/db
+
+  # --- Zeek 服务 ---
+  zeek:
+    image: zeek/zeek:latest
+    container_name: my-zeek
+    # 使用 host 网络模式，这样 Zeek 才能看到宿主机（虚拟机）的网卡流量
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      # 挂载日志目录，Zeek 产生的日志会出现在这里
+      - ./zeek-logs:/zeek-logs
+      - ./pcap:/pcap
+    # 这里使用 tail -f 让容器保持运行状态，方便我们要么进入容器操作，
+    # 或者稍后通过 exec 命令启动 zeek 监听
+    command: tail -f /dev/null

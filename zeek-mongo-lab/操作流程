@@ -1,0 +1,27 @@
+step1_analyze.py
+    pcap_dir = "./pcap" #pcap复制进来
+    conn_col = "3_1_conn"
+    payload_col = "3_1_payload"
+
+step2_repair.py
+
+step3_retry.py
+    conn_col = "3_1_conn"
+    payload_col = "3_1_payload"
+
+step3.1_dataclean.py
+
+step4_label_3.py
+CONN_COL_NAME = "3_1_conn"
+LABEL_COL_NAME = "3_1_labels"
+    csv_filename = "Wednesday-28-02-2018_TrafficForML_CICFlowMeter.csv"
+
+step4.4_create_index.py
+
+step4.5_extract_tfusion_data.py
+
+step4.6_train_tfusion.py
+
+step4.7_inference_writeback.py
+
+step5_export_json.py
