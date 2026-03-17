@@ -25,3 +25,18 @@ step4.6_train_tfusion.py
 step4.7_inference_writeback.py
 
 step5_export_json.py
+
+
+
+
+# 单卡 bf16 全精度（默认，推荐）
+CUDA_VISIBLE_DEVICES=1 python train_grpo_claude.py
+
+# 单卡 4-bit 量化
+CUDA_VISIBLE_DEVICES=1 python train_grpo_claude.py --quant4
+
+# 双卡 bf16 全精度
+CUDA_VISIBLE_DEVICES=1,2 torchrun --nproc_per_node=2 train_grpo_claude.py
+
+# 双卡 4-bit 量化
+CUDA_VISIBLE_DEVICES=1,2 torchrun --nproc_per_node=2 train_grpo_claude.py --quant4

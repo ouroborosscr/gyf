@@ -29,3 +29,9 @@ Reagent/*
 !zeek-mongo-lab/step4_label_3.py
 !zeek-mongo-lab/step4.5_tfusion_predict.py
 !zeek-mongo-lab/step5_export_json.py
+
+
+train/causal_conv1d-1.6.1+cu12torch2.10cxx11abiTRUE-cp311-cp311-linux_x86_64.whl
+train/causal_conv1d-1.6.1+cu12torch2.9cxx11abiTRUE-cp311-cp311-linux_x86_64.whl
+train/trl/*
+train/qwen-agent-grpo-output/*
