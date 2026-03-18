@@ -16,7 +16,7 @@ if not hasattr(transformers.configuration_utils, "ALLOWED_LAYER_TYPES"):
 os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 os.environ["NCCL_P2P_DISABLE"] = "1"
 os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "1"
-os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,garbage_collection_threshold:0.8"
 
 import re               
 import json             
@@ -30,8 +30,13 @@ from pymongo import MongoClient
 from peft import LoraConfig
 import gc
 
-# 自定义显存清理回调
+# 自定义显存清理回调（升级版）
 class MemoryCleanupCallback(transformers.TrainerCallback):
+    def on_step_end(self, args, state, control, **kwargs):
+        # 每次梯度更新后清理一次
+        gc.collect()
+        torch.cuda.empty_cache()
+        
     def on_epoch_end(self, args, state, control, **kwargs):
         gc.collect()
         torch.cuda.empty_cache()
@@ -74,6 +79,25 @@ else:
     current_device = "cuda:0" if visible_gpus > 0 else "cpu"
     model_device_map = "auto"
     logging.info(f"🖥️ 未检测到分布式环境，采用自适应加载，绑定至 {current_device}")
+# else:
+#     current_device = "cuda:0" if visible_gpus > 0 else "cpu"
+    
+#     # 终极精准切片（完美适配 Qwen-9B 架构）
+#     model_device_map = {
+#         "model.embed_tokens": 0,  # 词表嵌入层：绑在卡 0
+#         "model.rotary_emb": 0,    # 🚨 修复关键：旋转位置编码也必须绑在卡 0！
+#         "model.norm": 1,          # 尾部的 LayerNorm 放卡 1
+#         "lm_head": 1              # 最后的输出头放卡 1
+#     }
+    
+#     # Qwen-9B 一共有 32 层隐藏层，完美对半劈开 (0-15去卡0，16-31去卡1)
+#     for i in range(32):
+#         if i < 8:
+#             model_device_map[f"model.layers.{i}"] = 0
+#         else:
+#             model_device_map[f"model.layers.{i}"] = 1
+            
+#     logging.info(f"🖥️ 未检测到分布式环境，采用【精准强制切片】，底层与位置编码强制绑定至 cuda:0")
 
 MODEL_PATH = "/date/sunchengrui/models/Qwen3.5-9B"  
 AGENT_RRM_PATH = "/date/sunchengrui/models/Agent-RRM"                               
@@ -350,6 +374,12 @@ def main():
         
         model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **model_kwargs)
 
+        # # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
+        # if args.use_4bit:
+        #     from peft import prepare_model_for_kbit_training
+        #     # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
+        #     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+
         if hasattr(model.config, "sliding_window"):
             model.config.sliding_window = None
 
@@ -404,17 +434,18 @@ def main():
             temperature=0.9,
             top_p=0.9,
             top_k=50,
-            repetition_penalty=1.05,
+            # repetition_penalty=1.05,
+            repetition_penalty=1,
             optim="paged_adamw_8bit",
             
             # ==========================================
             # 🚀 【新增 2】：断点自动保存策略
             # ==========================================
             save_strategy="steps",
-            save_steps=10,             # 每 10 步在 OUTPUT_DIR 保存一个 checkpoint
+            save_steps=1,             # 每 10 步在 OUTPUT_DIR 保存一个 checkpoint
             save_total_limit=3,        # 硬盘保护：最多只保留最近的 3 个断点
 
-            
+            deepspeed="ds_config.json",
             
             **vllm_config
         )
@@ -426,6 +457,7 @@ def main():
             train_dataset=dataset,
             processing_class=tokenizer,
             peft_config=peft_config,  
+            callbacks=[MemoryCleanupCallback()]  # 🚀 【关键修复】：把你的垃圾回收器挂载上去！
         )
 
         # ==========================================
