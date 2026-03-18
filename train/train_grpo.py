@@ -374,11 +374,11 @@ def main():
         
         model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **model_kwargs)
 
-        # # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
-        # if args.use_4bit:
-        #     from peft import prepare_model_for_kbit_training
-        #     # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
-        #     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+        # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
+        if args.use_4bit:
+            from peft import prepare_model_for_kbit_training
+            # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
+            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
         if hasattr(model.config, "sliding_window"):
             model.config.sliding_window = None
