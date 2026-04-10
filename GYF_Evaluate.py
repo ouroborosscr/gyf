@@ -19,6 +19,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - [Evaluate] - %(mes
 
 # ================= 配置区 =================
 TARGET_DATE = "3_1"  # 与你在 Test 脚本中保持一致
+EVAL_START = 0      # 🌟 新增：指定评估的起始流编号 (比如从第 83 条开始)
+EVAL_LIMIT = 636     # 指定评估的结束流编号。设为 None 或 0 则评估到最后
 # ==========================================
 
 def main():
@@ -37,7 +39,7 @@ def main():
     llm_pred_col_name = f"{TARGET_DATE}_llm_predictions"   
     
     status_col_name = f"test_status_{TARGET_DATE}"
-    status_eval_col_name = f"test_status_evaluate_{TARGET_DATE}" # 标注后带真实区间的评估集合
+    status_eval_col_name = f"test_status_evaluate_{TARGET_DATE}" 
 
     conn_col = zeek_db[conn_col_name]
     label_col = zeek_db[label_col_name]
@@ -54,15 +56,22 @@ def main():
     
     current_id = int(control_doc.get("current_id", 0))
     total_flows = int(control_doc.get("flow_count", 0))
-    logging.info(f"LLM 智能体当前已分析流数量: {current_id} / {total_flows}")
+    logging.info(f"LLM 智能体当前共已分析流数量: {current_id} / {total_flows}")
 
-    if current_id == 0:
-        logging.warning("尚未分析任何数据，无法计算准确率。")
+    # --- 🌟 核心修改：确定本次要评估的精准区间 ---
+    start_idx = max(0, EVAL_START) if EVAL_START else 0
+    end_idx = min(current_id, EVAL_LIMIT) if (EVAL_LIMIT and EVAL_LIMIT > 0) else current_id
+    eval_count = max(0, end_idx - start_idx)
+
+    if eval_count == 0:
+        logging.warning(f"当前指定评估的流数量为 0 (起始: {start_idx}, 结束: {end_idx})，无法计算。")
         return
 
-    logging.info(f"正在提取前 {current_id} 条已被分析流量的 UID...")
-    analyzed_cursor = conn_col.find({}, {"uid": 1}).sort("ts", 1).limit(current_id)
-    # 提取出的 UIDs 保持严格的先后顺序，便于后续切片找真正的 absolute_index
+    logging.info(f"已开启精准区间限制，实际评估范围: 第 {start_idx} 条 到 第 {end_idx} 条 (共 {eval_count} 条流量)。")
+
+    logging.info("正在提取评估范围内的 UID...")
+    # 🌟 核心修改：MongoDB 查询加入 .skip(start_idx)
+    analyzed_cursor = conn_col.find({}, {"uid": 1}).sort("ts", 1).skip(start_idx).limit(eval_count)
     analyzed_uids = [doc["uid"] for doc in analyzed_cursor if "uid" in doc]
     
     suspicious_uids = set()
@@ -70,14 +79,14 @@ def main():
     for alert in alerts:
         flows = alert.get("suspicious_flows", [])
         for f in flows:
-            if "uid" in f:
+            # 只统计在我们本次评估范围(analyzed_uids)内的告警流
+            if "uid" in f and f["uid"] in analyzed_uids:
                 suspicious_uids.add(f["uid"])
                 
-    logging.info(f"提取完毕，大模型共将其中 {len(suspicious_uids)} 条流量判定为可疑 (Suspicious)。")
+    logging.info(f"提取完毕，大模型在评估范围内共判定 {len(suspicious_uids)} 条流量为可疑 (Suspicious)。")
 
     # ================= 2. 联合获取 Ground Truth 真实标签 =================
     logging.info(f"正在从 {label_col_name} 和 {tfusion_pred_col_name} 联合提取真实标签...")
-    
     true_labels = {}
     
     labels_cursor = label_col.find({"uid": {"$in": analyzed_uids}}, {"uid": 1, "label": 1})
@@ -143,7 +152,7 @@ def main():
     print("\n" + "="*55)
     print("               LLM 智能体流量分析评估报告")
     print("="*55)
-    print(f" 评估范围: {current_id} 条流 (有效打标样本: {len(df_eval)} 条)")
+    print(f" 评估范围: [{start_idx} ~ {end_idx}) 共 {eval_count} 条 (有效样本: {len(df_eval)} 条)")
     print("-" * 55)
     print(f"【真实情况】 正常 (Benign): {actual_neg} | 攻击 (Attack): {actual_pos}")
     if actual_pos > 0:
@@ -172,19 +181,27 @@ def main():
 
     # ================= 6. 复制状态表并写入真实绝对区间 =================
     logging.info(f"正在生成包含真实评估区间的新集合: {status_eval_col_name}")
-    status_eval_col.delete_many({})  # 清空旧评估状态表
+    status_eval_col.delete_many({}) 
     
     all_status_docs = list(status_col.find({}))
     eval_docs_to_insert = []
     
     for doc in all_status_docs:
+        skip_val = doc.get("from_batch_skip", 0)
+        
+        # 🌟 核心修改：过滤掉不在评估范围内的批次
+        if skip_val < start_idx or skip_val >= end_idx:
+            continue
+
         new_doc = doc.copy()
         
         if new_doc.get("type") in ["suspicious_alert", "normal_log"]:
-            skip_val = new_doc.get("from_batch_skip", 0)
             limit_val = new_doc.get("batch_limit", 30)
             
-            batch_uids = analyzed_uids[skip_val : skip_val + limit_val]
+            # 🌟 核心修改：切片偏移量修正！
+            # 因为 analyzed_uids 是从 start_idx 开始抓的，所以需要把 skip_val 减去 start_idx 来对齐索引
+            slice_start = skip_val - start_idx
+            batch_uids = analyzed_uids[slice_start : slice_start + limit_val] 
             
             true_start = None
             true_end = None
@@ -194,7 +211,7 @@ def main():
                 raw_label = true_labels.get(uid, "Unknown")
                 is_attack = (raw_label != "Unknown" and str(raw_label).lower() != "benign")
                 
-                # 【关键修改】：绝对总编号 = 当前批次的跳过数(skip_val) + 局部索引(i) + 1
+                # 绝对总编号 = 当前批次的跳过数(skip_val) + 局部索引(i) + 1
                 absolute_index = skip_val + i + 1 
                 
                 if is_attack:
@@ -215,7 +232,7 @@ def main():
         
     if eval_docs_to_insert:
         status_eval_col.insert_many(eval_docs_to_insert)
-        logging.info(f"✅ 已成功复制并标注 {len(eval_docs_to_insert)} 条区间记录到集合: {status_eval_col_name}")
+        logging.info(f"✅ 已成功复制并标注 {len(eval_docs_to_insert)} 条评估区间内的状态记录到集合: {status_eval_col_name}")
 
 if __name__ == "__main__":
     main()

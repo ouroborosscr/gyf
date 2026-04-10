@@ -7,7 +7,59 @@ CUDA_VISIBLE_DEVICES=1 vllm serve /date/sunchengrui/models/Qwen3-8B-moretoken   
 CUDA_VISIBLE_DEVICES=1 vllm serve /date/sunchengrui/models/Qwen3.5-9B   --port 8000   --host 0.0.0.0   --dtype bfloat16   --max-model-len 248320   --gpu-memory-utilization 0.5   --enable-auto-tool-choice   --tool-call-parser hermes --served-model-name Qwen3/Qwen3.5-9B
 
 
-CUDA_VISIBLE_DEVICES=1 vllm serve /date/sunchengrui/models/Qwen3.5-9B --port 8000 --tensor-parallel-size 1 --max-model-len 262144 --reasoning-parser qwen3 --speculative-config '{"method":"qwen3_next_mtp","num_speculative_tokens":2}' --served-model-name Qwen3/Qwen3.5-9B  --enable-auto-tool-choice --tool-call-parser hermes
+CUDA_VISIBLE_DEVICES=1 vllm serve /date/sunchengrui/models/Qwen3.5-9B --port 8223 --tensor-parallel-size 1 --max-model-len 262144 --reasoning-parser qwen3 --speculative-config '{"method":"qwen3_next_mtp","num_speculative_tokens":2}' --served-model-name Qwen3/Qwen3.5-9B  --enable-auto-tool-choice --tool-call-parser qwen3_coder
 
 
 VLLM_USE_MODELSCOPE=true vllm serve Qwen/Qwen3.5-9B --port 8000 --tensor-parallel-size 1 --max-model-len 262144 --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder 
+
+Qwen3.5-9B模型:
+CUDA_VISIBLE_DEVICES=0 vllm serve /date/sunchengrui/models/Qwen3.5-9B --port 8223 --tensor-parallel-size 1 --max-model-len 262144 --reasoning-parser qwen3 --served-model-name Qwen3.5/Qwen3.5-9B  --enable-auto-tool-choice --tool-call-parser qwen3_coder --gpu-memory-utilization 0.5
+
+
+RRM模型:
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+    --model /date/sunchengrui/models/Agent-RRM \
+    --tensor-parallel-size 1 \
+    --port 8123 \
+    --gpu-memory-utilization 0.3
+
+Qwen3-Embedding-4B模型:
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+    --model /date/sunchengrui/models/Qwen3-Embedding-4B \
+    --served-model-name qwen3-embed-4b \
+    --port 8002 \
+    --max-model-len 8192 \
+    --trust-remote-code \
+    --dtype auto \
+    --enforce-eager \
+    --gpu-memory-utilization 0.15
+
+启动训练：
+正常训练（安静模式）
+CUDA_LAUNCH_BLOCKING=1 CUDA_HOME=/usr/local/cuda-12.8 LD_PRELOAD=/opt/anaconda3/envs/scr_train2/lib/libstdc++.so.6 CUDA_VISIBLE_DEVICES=2 torchrun --nproc_per_node=1 train_dapo_3.py  --use_lora --use_4bit --use_flash_attn
+
+Debug 模式（开启所有嗅探）
+DEBUG_VERBOSE=1 CUDA_LAUNCH_BLOCKING=1 CUDA_HOME=/usr/local/cuda-12.8 LD_PRELOAD=/opt/anaconda3/envs/scr_train2/lib/libstdc++.so.6 CUDA_VISIBLE_DEVICES=2 torchrun --nproc_per_node=1 train_dapo_3.py --use_lora --use_4bit --use_flash_attn
+
+# python rag.py --reset --reset-neo4j
+# python rag.py --max-docs 10
+# python rag.py
+
+
+
+
+rag
+Embedding
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server     --model /date/sunchengrui/models/Qwen3-Embedding-4B     --served-model-name qwen3-embed-4b     --port 8002     --max-model-len 8192     --trust-remote-code     --dtype auto     --enforce-eager     --gpu-memory-utilization 0.15
+vllm
+CUDA_VISIBLE_DEVICES=0 vllm serve /date/sunchengrui/models/Qwen3.5-9B --port 8223 --tensor-parallel-size 1 --max-model-len 262144 --reasoning-parser qwen3 --served-model-name Qwen3.5/Qwen3.5-9B  --enable-auto-tool-choice --tool-call-parser qwen3_coder --gpu-memory-utilization 0.5
+运行
+python rag.py
+
+
+train
+RRM模型
+CUDA_VISIBLE_DEVICES=2 python -m vllm.entrypoints.openai.api_server     --model /date/sunchengrui/models/Agent
+-RRM     --tensor-parallel-size 1     --port 8123     --gpu-memory-utilization 0.3
+DAPO
+CUDA_LAUNCH_BLOCKING=1 CUDA_HOME=/usr/local/cuda-12.8 LD_PRELOAD=/opt/anaconda3/envs/scr_train2/lib/libstdc++.so.6 CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node=1 train_dapo_3.py  --use_lora --use_4bit --use_flash_attn

@@ -3,9 +3,10 @@ import sys
 import argparse         
 import torch            
 # 开启 PyTorch 异常侦测（仅用于 Debug，定位具体哪个层溢出）
-torch.autograd.set_detect_anomaly(True)
+# torch.autograd.set_detect_anomaly(True)
 import requests         
 from tqdm import tqdm   # 🚀 加回进度条
+from nan_hunter import NaNHunterCallback
 
 
 # ==========================================
@@ -490,7 +491,8 @@ def logic_reward_func(completions, **kwargs):
             response.raise_for_status() 
             
             rm_output = response.json()["choices"][0]["text"]
-            score_match = re.search(r'<score>\s*([0-9.]+)\s*</score>', rm_output)
+            score_matches = re.findall(r'<score>\s*([0-9.]+)\s*</score>', rm_output)
+            score_match = score_matches[-1] if score_matches else None
             
             # 🚀 【核心排查点】：只打印当前 batch 的第一个线程的日志
             if idx == 0 and not printed_this_step:
@@ -498,14 +500,14 @@ def logic_reward_func(completions, **kwargs):
                 # print(f"🤖 [输入给裁判的智能体文本片段]:\n{comp[:200]}...\n")
                 print(f"🤖 [RRM 裁判原始返回]:\n{rm_output}\n")
                 if score_match:
-                    print(f"✅ [成功提取分数]: {score_match.group(1)}")
+                    print(f"✅ [成功提取分数]: {score_match}")
                 else:
                     print("❌ [正则提取失败！未找到 <score> 标签]")
                 print("🌟"*56 + "\n")
                 printed_this_step = True
             
             if score_match: 
-                return float(score_match.group(1))
+                return float(score_match)
             else: 
                 return 0.0 
                 
@@ -574,10 +576,10 @@ def main():
         logging.info("正在加载 Qwen3.5-9B 策略模型 ...")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 
-        # # ==========================================
-        # # 🚀 核心修复：强制屏蔽 Qwen 的未初始化 Padding 噪音
-        # # 确保 pad_token 和 eos_token 落在安全的已知区间 (< 151936)
-        # # ==========================================
+        # ==========================================
+        # 🚀 核心修复：强制屏蔽 Qwen 的未初始化 Padding 噪音
+        # 确保 pad_token 和 eos_token 落在安全的已知区间 (< 151936)
+        # ==========================================
         # safe_eos_token_id = 151643  # Qwen 的 <|endoftext|>
         
         # if getattr(tokenizer, "eos_token_id", None) is None or tokenizer.eos_token_id >= 151936:
@@ -599,6 +601,8 @@ def main():
 
         tokenizer.padding_side = "left"
 
+
+
         model_kwargs = {
             "torch_dtype": torch.bfloat16,
             "device_map": model_device_map,  
@@ -619,11 +623,18 @@ def main():
         
         model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **model_kwargs)
 
-        # # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
-        # if args.use_4bit:
-        #     from peft import prepare_model_for_kbit_training
-        #     # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
-        #     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+                        # 强制加上这几句
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+
+        model.config.pad_token_id = tokenizer.pad_token_id
+
+        # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
+        if args.use_4bit:
+            from peft import prepare_model_for_kbit_training
+            # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
+            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
         if hasattr(model.config, "sliding_window"):
             model.config.sliding_window = None
@@ -668,9 +679,13 @@ def main():
             vllm_config = {"use_vllm": False}
 
         training_args = GRPOConfig(
+
+            loss_type="grpo", #默认是dapo
+
             output_dir=OUTPUT_DIR,            
             # learning_rate=5e-6,
-            learning_rate=5e-7,               
+            learning_rate=5e-7,     
+            # max_grad_norm=1.0,          
             max_grad_norm=0.3,
             beta=0.04,
             lr_scheduler_type="cosine",       
@@ -687,8 +702,8 @@ def main():
             max_completion_length=4096,  
             bf16=True,                        
             gradient_checkpointing=True,      
-            # report_to="tensorboard",
-            # logging_dir="./runs/qwen-grpo-logs", # 告诉它曲线数据存在哪               
+            report_to="tensorboard",
+            logging_dir="./runs/qwen-grpo-logs", # 告诉它曲线数据存在哪               
             # temperature=0.9,
             temperature=1.0,
             # top_p=0.9,
@@ -697,8 +712,8 @@ def main():
             top_k=0,
             # repetition_penalty=1.05,
             repetition_penalty=1,
-            # optim="paged_adamw_8bit",
             optim="adamw_torch",
+            # optim="paged_adamw_8bit",
             
             # ==========================================
             # 🚀 【新增 2】：断点自动保存策略
@@ -720,7 +735,7 @@ def main():
             train_dataset=dataset,
             processing_class=tokenizer,
             peft_config=peft_config,  
-            callbacks=[MemoryCleanupCallback()]  # 🚀 【关键修复】：把你的垃圾回收器挂载上去！
+            callbacks=[MemoryCleanupCallback(), NaNHunterCallback()]  # 🚀 【关键修复】：把你的垃圾回收器挂载上去！
         )
 
         # ==========================================

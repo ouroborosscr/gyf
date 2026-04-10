@@ -2,8 +2,6 @@ import os
 import sys
 import argparse         
 import torch            
-# 开启 PyTorch 异常侦测（仅用于 Debug，定位具体哪个层溢出）
-torch.autograd.set_detect_anomaly(True)
 import requests         
 from tqdm import tqdm   # 🚀 加回进度条
 
@@ -92,7 +90,7 @@ except ImportError:
     print("无法导入 utils.config，请确保路径正确")
     sys.exit(1)  
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - [GRPO] - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - [DAPO] - %(message)s')
 
 # ==========================================
 # 【环境自适应感知】
@@ -135,7 +133,7 @@ else:
 
 MODEL_PATH = "/date/sunchengrui/models/Qwen3.5-9B"  
 AGENT_RRM_PATH = "/date/sunchengrui/models/Agent-RRM"                               
-OUTPUT_DIR = "./qwen-agent-grpo-output"             
+OUTPUT_DIR = "./qwen-agent-dapo-output"             
 TARGET_DATE = "3_1"  
 
 RRM_API_URL = "http://localhost:8123/v1/completions"
@@ -544,7 +542,7 @@ def logic_reward_func(completions, **kwargs):
     return rewards
 
 def main():
-    parser = argparse.ArgumentParser(description="Qwen GRPO 训练脚本")
+    parser = argparse.ArgumentParser(description="Qwen DAPO 训练脚本")
     parser.add_argument("--use_4bit", action="store_true", help="是否启用 4-bit QLoRA")
     parser.add_argument("--use_lora", action="store_true", help="是否启用 LoRA")
     parser.add_argument("--use_vllm", action="store_true", help="是否启用 vLLM")
@@ -574,30 +572,28 @@ def main():
         logging.info("正在加载 Qwen3.5-9B 策略模型 ...")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 
-        # # ==========================================
-        # # 🚀 核心修复：强制屏蔽 Qwen 的未初始化 Padding 噪音
-        # # 确保 pad_token 和 eos_token 落在安全的已知区间 (< 151936)
-        # # ==========================================
-        # safe_eos_token_id = 151643  # Qwen 的 <|endoftext|>
+        # ==========================================
+        # 🚀 核心修复：强制屏蔽 Qwen 的未初始化 Padding 噪音
+        # 确保 pad_token 和 eos_token 落在安全的已知区间 (< 151936)
+        # ==========================================
+        safe_eos_token_id = 151643  # Qwen 的 <|endoftext|>
         
-        # if getattr(tokenizer, "eos_token_id", None) is None or tokenizer.eos_token_id >= 151936:
-        #     tokenizer.eos_token_id = safe_eos_token_id
-        #     tokenizer.eos_token = "<|endoftext|>"
+        if getattr(tokenizer, "eos_token_id", None) is None or tokenizer.eos_token_id >= 151936:
+            tokenizer.eos_token_id = safe_eos_token_id
+            tokenizer.eos_token = "<|endoftext|>"
             
-        # if getattr(tokenizer, "pad_token_id", None) is None or tokenizer.pad_token_id >= 151936:
-        #     tokenizer.pad_token_id = safe_eos_token_id
-        #     tokenizer.pad_token = "<|endoftext|>"
+        if getattr(tokenizer, "pad_token_id", None) is None or tokenizer.pad_token_id >= 151936:
+            tokenizer.pad_token_id = safe_eos_token_id
+            tokenizer.pad_token = "<|endoftext|>"
 
 
         # if tokenizer.pad_token is None:
         #     tokenizer.pad_token = tokenizer.eos_token
         
-        # if args.use_flash_attn:
-        #     tokenizer.padding_side = "right" 
-        # else:
-        #     tokenizer.padding_side = "left"
-
-        tokenizer.padding_side = "left"
+        if args.use_flash_attn:
+            tokenizer.padding_side = "right" 
+        else:
+            tokenizer.padding_side = "left"
 
         model_kwargs = {
             "torch_dtype": torch.bfloat16,
@@ -619,11 +615,11 @@ def main():
         
         model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **model_kwargs)
 
-        # # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
-        # if args.use_4bit:
-        #     from peft import prepare_model_for_kbit_training
-        #     # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
-        #     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+        # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
+        if args.use_4bit:
+            from peft import prepare_model_for_kbit_training
+            # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
+            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
         if hasattr(model.config, "sliding_window"):
             model.config.sliding_window = None
@@ -636,13 +632,12 @@ def main():
         if hasattr(model, "generation_config"):
             model.generation_config.pad_token_id = tokenizer.pad_token_id
             model.generation_config.eos_token_id = tokenizer.eos_token_id
-            # model.generation_config.bos_token_id = tokenizer.eos_token_id # 防患于未然
+            model.generation_config.bos_token_id = tokenizer.eos_token_id # 防患于未然
 
         if args.use_lora:
             peft_config = LoraConfig(
                 r=16,
                 lora_alpha=32,
-                # lora_dropout=0.05,
                 target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
                 task_type="CAUSAL_LM",
             )
@@ -670,11 +665,20 @@ def main():
         training_args = GRPOConfig(
             output_dir=OUTPUT_DIR,            
             # learning_rate=5e-6,
-            learning_rate=5e-7,               
-            max_grad_norm=0.3,
+            learning_rate=1e-6,               
+            max_grad_norm=1.0,
             beta=0.04,
             lr_scheduler_type="cosine",       
             logging_steps=1, 
+
+            # ==========================================
+            # 🚀 【新增】：开启 DAPO 高级强化学习模式
+            # ==========================================
+            loss_type="dapo",                   # 启用 DAPO Token-level Loss（解决长文本梯度稀释）
+            epsilon=0.2,                        # PPO/GRPO 标准的下界裁剪范围 (默认 0.2)
+            epsilon_high=0.28,                  # DAPO 核心创新：非对称/解耦的上界裁剪范围 (稍微大一点，鼓励探索)
+            mask_truncated_completions=True,    # DAPO 核心创新：屏蔽掉那些因为太长被截断的“半成品”回答，防止误导模型
+            # ==========================================
             
             # 🚀 【修改】：既然长期训练，总步数必须调大
             max_steps=500,                     
@@ -687,18 +691,18 @@ def main():
             max_completion_length=4096,  
             bf16=True,                        
             gradient_checkpointing=True,      
-            # report_to="tensorboard",
-            # logging_dir="./runs/qwen-grpo-logs", # 告诉它曲线数据存在哪               
+            report_to="tensorboard",
+            logging_dir="./runs/qwen-dapo-logs", # 告诉它曲线数据存在哪               
             # temperature=0.9,
             temperature=1.0,
             # top_p=0.9,
             top_p=1.0,
             # top_k=50,
+            # top_k=20,
             top_k=0,
             # repetition_penalty=1.05,
             repetition_penalty=1,
-            # optim="paged_adamw_8bit",
-            optim="adamw_torch",
+            optim="paged_adamw_8bit",
             
             # ==========================================
             # 🚀 【新增 2】：断点自动保存策略
@@ -735,7 +739,7 @@ def main():
                 resume_checkpoint = args.resume
                 logging.info(f"🔄 手动模式：正从指定路径恢复: {resume_checkpoint}")
 
-        logging.info("🚀 开始 GRPO 强化学习训练...")
+        logging.info("🚀 开始 DAPO 强化学习训练...")
         
         # 将重连参数传给 train 方法
         trainer.train(resume_from_checkpoint=resume_checkpoint)  
@@ -758,10 +762,10 @@ if __name__ == "__main__":
     main()
 
 # 全新开始训练
-# CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node=1 train_grpo.py --use_lora --use_4bit
+# CUDA_VISIBLE_DEVICES=2 torchrun --nproc_per_node=1 train_dapo.py --use_lora --use_4bit
 # 场景 2：跑一半断电了，或者爆显存崩溃了
-# 直接在后面加上 --resume。代码会自动去 ./qwen-agent-grpo-output 目录里找到步数最大的那个断点，无缝接着跑，连进度条的数字都能完美续上：
-# CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node=1 train_grpo.py --use_lora --use_4bit --resume
+# 直接在后面加上 --resume。代码会自动去 ./qwen-agent-dapo-output 目录里找到步数最大的那个断点，无缝接着跑，连进度条的数字都能完美续上：
+# CUDA_VISIBLE_DEVICES=2 torchrun --nproc_per_node=1 train_dapo.py --use_lora --use_4bit --resume
 # 场景 3：你想回滚到某一个特定的历史步数（比如第 20 步）
 # 指定具体的断点文件夹路径即可：
-# CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node=1 train_grpo.py --use_lora --use_4bit --resume ./qwen-agent-grpo-output/checkpoint-20
+# CUDA_VISIBLE_DEVICES=2 torchrun --nproc_per_node=1 train_dapo.py --use_lora --use_4bit --resume ./qwen-agent-dapo-output/checkpoint-20

@@ -1,5 +1,5 @@
 {
-    "gradient_clipping": 0.3,
+    "gradient_clipping": 1.0,
     "fp16": {
         "enabled": false
     },

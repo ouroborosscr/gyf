@@ -687,8 +687,8 @@ def main():
             max_completion_length=4096,  
             bf16=True,                        
             gradient_checkpointing=True,      
-            # report_to="tensorboard",
-            # logging_dir="./runs/qwen-grpo-logs", # 告诉它曲线数据存在哪               
+            report_to="tensorboard",
+            logging_dir="./runs/qwen-grpo-logs", # 告诉它曲线数据存在哪               
             # temperature=0.9,
             temperature=1.0,
             # top_p=0.9,
@@ -697,8 +697,7 @@ def main():
             top_k=0,
             # repetition_penalty=1.05,
             repetition_penalty=1,
-            # optim="paged_adamw_8bit",
-            optim="adamw_torch",
+            optim="paged_adamw_8bit",
             
             # ==========================================
             # 🚀 【新增 2】：断点自动保存策略

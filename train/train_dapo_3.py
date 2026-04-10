@@ -2,10 +2,14 @@ import os
 import sys
 import argparse         
 import torch            
+# torch.backends.cuda.enable_flash_sdp(False)
+# torch.backends.cuda.enable_mem_efficient_sdp(False)
 # 开启 PyTorch 异常侦测（仅用于 Debug，定位具体哪个层溢出）
-torch.autograd.set_detect_anomaly(True)
+# torch.autograd.set_detect_anomaly(True)
 import requests         
 from tqdm import tqdm   # 🚀 加回进度条
+from nan_hunter import NaNHunterCallback
+from transformers import AutoConfig # 记得在顶部 import
 
 
 # ==========================================
@@ -92,7 +96,7 @@ except ImportError:
     print("无法导入 utils.config，请确保路径正确")
     sys.exit(1)  
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - [GRPO] - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - [DAPO] - %(message)s')
 
 # ==========================================
 # 【环境自适应感知】
@@ -135,7 +139,7 @@ else:
 
 MODEL_PATH = "/date/sunchengrui/models/Qwen3.5-9B"  
 AGENT_RRM_PATH = "/date/sunchengrui/models/Agent-RRM"                               
-OUTPUT_DIR = "./qwen-agent-grpo-output"             
+OUTPUT_DIR = "./qwen-agent-dapo-output"             
 TARGET_DATE = "3_1"  
 
 RRM_API_URL = "http://localhost:8123/v1/completions"
@@ -168,7 +172,7 @@ def ensure_indexes(db, target_date):
     pred_col = db[pred_col_name]
     if "uid_1" not in pred_col.index_information(): pred_col.create_index([("uid", 1)])
 
-def fetch_flows_for_dataset(db, target_date, skip_idx, limit_val, max_payload_len=2000):
+def fetch_flows_for_dataset(db, target_date, skip_idx, limit_val, max_payload_len=1000):
     conn_col = db[f"{target_date}_conn"]        
     payload_col = db[f"{target_date}_payload"]  
     cursor = conn_col.find({}).sort("ts", 1).skip(skip_idx).limit(limit_val)
@@ -224,7 +228,8 @@ def build_grpo_dataset(tokenizer, target_date=TARGET_DATE, range_start=1, range_
     
     prompts, ground_truths = [], []
     for _ in tqdm(range(num_samples), desc="正在抽取流量数据"):
-        L = 25
+        # L = 25
+        L = 30
         min_skip = max(0, range_start - 1)
         max_skip = max(min_skip, range_end - L)
         S = random.randint(min_skip, max_skip)
@@ -490,7 +495,8 @@ def logic_reward_func(completions, **kwargs):
             response.raise_for_status() 
             
             rm_output = response.json()["choices"][0]["text"]
-            score_match = re.search(r'<score>\s*([0-9.]+)\s*</score>', rm_output)
+            score_matches = re.findall(r'<score>\s*([0-9.]+)\s*</score>', rm_output)
+            score_match = score_matches[-1] if score_matches else None
             
             # 🚀 【核心排查点】：只打印当前 batch 的第一个线程的日志
             if idx == 0 and not printed_this_step:
@@ -498,14 +504,14 @@ def logic_reward_func(completions, **kwargs):
                 # print(f"🤖 [输入给裁判的智能体文本片段]:\n{comp[:200]}...\n")
                 print(f"🤖 [RRM 裁判原始返回]:\n{rm_output}\n")
                 if score_match:
-                    print(f"✅ [成功提取分数]: {score_match.group(1)}")
+                    print(f"✅ [成功提取分数]: {score_match}")
                 else:
                     print("❌ [正则提取失败！未找到 <score> 标签]")
                 print("🌟"*56 + "\n")
                 printed_this_step = True
             
             if score_match: 
-                return float(score_match.group(1))
+                return float(score_match)
             else: 
                 return 0.0 
                 
@@ -544,7 +550,7 @@ def logic_reward_func(completions, **kwargs):
     return rewards
 
 def main():
-    parser = argparse.ArgumentParser(description="Qwen GRPO 训练脚本")
+    parser = argparse.ArgumentParser(description="Qwen DAPO 训练脚本")
     parser.add_argument("--use_4bit", action="store_true", help="是否启用 4-bit QLoRA")
     parser.add_argument("--use_lora", action="store_true", help="是否启用 LoRA")
     parser.add_argument("--use_vllm", action="store_true", help="是否启用 vLLM")
@@ -574,10 +580,10 @@ def main():
         logging.info("正在加载 Qwen3.5-9B 策略模型 ...")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 
-        # # ==========================================
-        # # 🚀 核心修复：强制屏蔽 Qwen 的未初始化 Padding 噪音
-        # # 确保 pad_token 和 eos_token 落在安全的已知区间 (< 151936)
-        # # ==========================================
+        # ==========================================
+        # 🚀 核心修复：强制屏蔽 Qwen 的未初始化 Padding 噪音
+        # 确保 pad_token 和 eos_token 落在安全的已知区间 (< 151936)
+        # ==========================================
         # safe_eos_token_id = 151643  # Qwen 的 <|endoftext|>
         
         # if getattr(tokenizer, "eos_token_id", None) is None or tokenizer.eos_token_id >= 151936:
@@ -599,6 +605,8 @@ def main():
 
         tokenizer.padding_side = "left"
 
+
+
         model_kwargs = {
             "torch_dtype": torch.bfloat16,
             "device_map": model_device_map,  
@@ -607,6 +615,7 @@ def main():
 
         if args.use_flash_attn:
             model_kwargs["attn_implementation"] = "flash_attention_2"
+            # model_kwargs["attn_implementation"] = "eager"
 
         if args.use_4bit:
             bnb_config = BitsAndBytesConfig(
@@ -617,16 +626,25 @@ def main():
             )
             model_kwargs["quantization_config"] = bnb_config
         
-        model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, **model_kwargs)
+        # 🚀 1. 必须先单独加载并修改 Config，再传给模型！
+        model_config = AutoConfig.from_pretrained(MODEL_PATH)
+        if hasattr(model_config, "sliding_window"):
+            model_config.sliding_window = None
+        
+        model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, config=model_config, **model_kwargs)
+
+                # 强制加上这几句
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+
+        model.config.pad_token_id = tokenizer.pad_token_id
 
         # # 🚀 【关键修复：为 QLoRA 穿上防弹衣】
         # if args.use_4bit:
         #     from peft import prepare_model_for_kbit_training
         #     # 这一步会自动将 LayerNorm 层转换为 fp32，防止训练几步后出现 NaN 和 Inf 崩溃
         #     model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
-
-        if hasattr(model.config, "sliding_window"):
-            model.config.sliding_window = None
 
         # 同步修正模型的 config
         model.config.pad_token_id = tokenizer.pad_token_id
@@ -669,12 +687,25 @@ def main():
 
         training_args = GRPOConfig(
             output_dir=OUTPUT_DIR,            
-            # learning_rate=5e-6,
-            learning_rate=5e-7,               
-            max_grad_norm=0.3,
+            learning_rate=5e-6,
+            # learning_rate=5e-9,     
+            max_grad_norm=1.0,          
+            # max_grad_norm=0.1,
             beta=0.04,
             lr_scheduler_type="cosine",       
             logging_steps=1, 
+
+            # ==========================================
+            # 🚀 【新增】：开启 DAPO 高级强化学习模式
+            # ==========================================
+            loss_type="dapo",                   # 启用 DAPO Token-level Loss（解决长文本梯度稀释）
+            epsilon=0.2,                        # PPO/GRPO 标准的下界裁剪范围 (默认 0.2)
+            epsilon_high=0.28,                  # DAPO 核心创新：非对称/解耦的上界裁剪范围 (稍微大一点，鼓励探索)
+            mask_truncated_completions=True,    # DAPO 核心创新：屏蔽掉那些因为太长被截断的“半成品”回答，防止误导模型
+            # 3. delta — 对 ratio 的硬上限，防止 exp 爆炸
+            #    这是 DAPO 最重要的安全阀
+            delta=10.0,           # ratio 最大不超过 10
+            # ==========================================
             
             # 🚀 【修改】：既然长期训练，总步数必须调大
             max_steps=500,                     
@@ -687,8 +718,8 @@ def main():
             max_completion_length=4096,  
             bf16=True,                        
             gradient_checkpointing=True,      
-            # report_to="tensorboard",
-            # logging_dir="./runs/qwen-grpo-logs", # 告诉它曲线数据存在哪               
+            report_to="tensorboard",
+            logging_dir="./runs/qwen-dapo-logs", # 告诉它曲线数据存在哪               
             # temperature=0.9,
             temperature=1.0,
             # top_p=0.9,
@@ -697,8 +728,8 @@ def main():
             top_k=0,
             # repetition_penalty=1.05,
             repetition_penalty=1,
-            # optim="paged_adamw_8bit",
             optim="adamw_torch",
+            # optim="paged_adamw_8bit",
             
             # ==========================================
             # 🚀 【新增 2】：断点自动保存策略
@@ -707,7 +738,7 @@ def main():
             save_steps=1,             # 每 10 步在 OUTPUT_DIR 保存一个 checkpoint
             save_total_limit=3,        # 硬盘保护：最多只保留最近的 3 个断点
 
-            deepspeed="ds_config.json",
+            deepspeed="ds_config_dapo.json",
             
             **vllm_config
         )
@@ -720,8 +751,13 @@ def main():
             train_dataset=dataset,
             processing_class=tokenizer,
             peft_config=peft_config,  
-            callbacks=[MemoryCleanupCallback()]  # 🚀 【关键修复】：把你的垃圾回收器挂载上去！
+            # callbacks=[MemoryCleanupCallback()]  # 🚀 【关键修复】：把你的垃圾回收器挂载上去！
+            callbacks=[MemoryCleanupCallback(), NaNHunterCallback()]  # 🚀 【关键修复】：把你的垃圾回收器挂载上去！
         )
+
+        if os.environ.get("DEBUG_VERBOSE", "0") == "1":
+            import loss_inspector
+            loss_inspector.install(trainer)
 
         # ==========================================
         # 🚀 【新增 3】：解析断点并注入训练引擎
@@ -735,7 +771,7 @@ def main():
                 resume_checkpoint = args.resume
                 logging.info(f"🔄 手动模式：正从指定路径恢复: {resume_checkpoint}")
 
-        logging.info("🚀 开始 GRPO 强化学习训练...")
+        logging.info("🚀 开始 DAPO 强化学习训练...")
         
         # 将重连参数传给 train 方法
         trainer.train(resume_from_checkpoint=resume_checkpoint)  
@@ -765,3 +801,11 @@ if __name__ == "__main__":
 # 场景 3：你想回滚到某一个特定的历史步数（比如第 20 步）
 # 指定具体的断点文件夹路径即可：
 # CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node=1 train_grpo.py --use_lora --use_4bit --resume ./qwen-agent-grpo-output/checkpoint-20
+
+
+
+# 正常训练（安静模式）
+# CUDA_LAUNCH_BLOCKING=1 CUDA_HOME=/usr/local/cuda-12.8 LD_PRELOAD=/opt/anaconda3/envs/scr_train2/lib/libstdc++.so.6 CUDA_VISIBLE_DEVICES=2 torchrun --nproc_per_node=1 train_dapo_3.py  --use_lora --use_4bit --use_flash_attn
+
+# Debug 模式（开启所有嗅探）
+# DEBUG_VERBOSE=1 CUDA_LAUNCH_BLOCKING=1 CUDA_HOME=/usr/local/cuda-12.8 LD_PRELOAD=/opt/anaconda3/envs/scr_train2/lib/libstdc++.so.6 CUDA_VISIBLE_DEVICES=2 torchrun --nproc_per_node=1 train_dapo_3.py --use_lora --use_4bit --use_flash_attn

@@ -35,3 +35,30 @@ train/causal_conv1d-1.6.1+cu12torch2.10cxx11abiTRUE-cp311-cp311-linux_x86_64.whl
 train/causal_conv1d-1.6.1+cu12torch2.9cxx11abiTRUE-cp311-cp311-linux_x86_64.whl
 train/trl/*
 train/qwen-agent-grpo-output/*
+train/qwen-agent-dapo-output/*
+
+train/causal_conv1d-1.6.1+cu12torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+train/flash_attn-2.8.3+cu12torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+train/flash_attn_3-3.0.0+20260216.cu129torch290cxx11abitrue.fec3a6-cp39-abi3-linux_x86_64.whl
+train/flash_attn_3-3.0.0+20260302.cu128torch2100cxx11abitrue.ceb109-cp39-abi3-linux_x86_64.whl
+train/flash_attn_3-3.0.0+20260316.cu129torch280cxx11abitrue.71bf77-cp39-abi3-linux_x86_64.whl
+train/qwen-agent-dapo-output_lr_too_small/
+train/qwen-agent-dapo-output_backup/
+train/qwen-agent-dapo-output_backup2/
+train/qwen-agent-grpo-output_backup2/
+train/qwen3_gradient_explosion/
+train/flash-attention/flash_attn_2_cuda.cpython-312-x86_64-linux-gnu.so
+train/flash-attention/flash_attn_2_cuda.cpython-311-x86_64-linux-gnu.so
+
+# 忽略所有带有后缀的 dapo 和 grpo 训练输出目录
+train/qwen-agent-dapo-output*/
+train/qwen-agent-grpo-output*/
+
+# 忽略梯度爆炸测试目录
+train/qwen3_gradient_explosion/
+
+# 忽略 flash-attention 源码及编译出的动态链接库
+train/flash-attention/
+*.so
+
+train/transformers/
