@@ -62,3 +62,11 @@ train/flash-attention/
 *.so
 
 train/transformers/
+
+
+asset/1777260550.csv
+intelligence/rimasuta_c2.pcap
+intelligence/rimasuta_c2_conn_baseline_result.txt
+intelligence/smargaft_c2.pcap
+intelligence/smargaft_c2_conn_baseline_result.txt
+pcap/*

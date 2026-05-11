@@ -115,8 +115,8 @@ def _ingest(log_name, col_name, db, source_pcap):
 
 def main():
     json_file = "repaired_files.json"
-    conn_col = "3_1_conn"
-    payload_col = "3_1_payload"
+    conn_col = "rimasuta_c2_conn"
+    payload_col = "rimasuta_c2_payload"
     
     # 1. 检查修复列表
     if not os.path.exists(json_file):

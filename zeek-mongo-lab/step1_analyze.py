@@ -69,8 +69,8 @@ def _ingest(log_name, col_name, db, source):
 # --- 主逻辑 ---
 def main():
     pcap_dir = "./pcap"
-    conn_col = "3_1_conn"
-    payload_col = "3_1_payload"
+    conn_col = "2_true_conn"
+    payload_col = "2_true_payload"
     
     # 1. 准备文件列表
     files = [f for f in os.listdir(pcap_dir) if f != "save-payload.zeek" and not f.startswith(".") and os.path.isfile(os.path.join(pcap_dir, f))]
