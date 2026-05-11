@@ -47,3 +47,5 @@ for dir_path in DIRECTORIES.values():
 ENABLE_THINK_OUTPUT = True
 
 ENABLE_PRINT = False
+
+GYF_SETTINGS["zeek_out_dir"] = "zeek-mongo-lab/pcap"  # 宿主机路径，zeek 日志落在这里
