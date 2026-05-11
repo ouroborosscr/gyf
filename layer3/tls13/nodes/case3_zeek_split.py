@@ -7,6 +7,7 @@ from layer3.tls13.db.payload_dao import fetch_stream_hex
 
 
 def case3_zeek_split(state: dict) -> dict:
+    print("进入case3")
     flow = state["current_flow"]
     update = {"case_tried": state.get("case_tried", []) + ["case3"]}
 

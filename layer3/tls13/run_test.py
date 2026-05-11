@@ -233,3 +233,13 @@ if __name__ == "__main__":
 
 # # 入完库之后，反复调试 case 逻辑只需要：
 # python -m layer3.tls13.run_test --flow-idx 12 --use-existing -v
+
+
+# # 先看看候选 TLS 会话（用现有的 2_true_conn）
+# python -m layer3.tls13.run_test --list-candidates \
+#        --conn-col 2_true_conn --ssl-col 2_true_ssl
+
+# # 选一个 idx 跑（--use-existing 保证不会尝试重跑 zeek）
+# python -m layer3.tls13.run_test \
+#        --conn-col example_conn --payload-col example_payload --ssl-col example_ssl \
+#        --flow-idx 0 --use-existing -v

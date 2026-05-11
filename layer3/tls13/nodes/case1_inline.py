@@ -7,6 +7,7 @@ from layer3.tls13.parsers.tls_record import find_hello_records
 
 def case1_inline(state: dict) -> dict:
     """会话开头直接抓: ClientHello 在 orig 方向开头, ServerHello 在 resp 方向开头。"""
+    print("进入case1")
     client = MongoClient(config.DATABASE["mongo"]["uri"])
     db = client[config.DATABASE["mongo"]["db_name"]]
 

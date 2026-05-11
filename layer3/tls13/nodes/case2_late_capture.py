@@ -17,6 +17,7 @@ def _scan_for_record_start(data: bytes, hint_offset: int, look_back: int = 4096)
 
 
 def case2_late_capture(state: dict) -> dict:
+    print("进入case2")
     flow = state["current_flow"]
     update = {"case_tried": state.get("case_tried", []) + ["case2"]}
 
