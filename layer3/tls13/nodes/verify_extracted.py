@@ -1,5 +1,5 @@
 import json
-from llm import llm   # 你项目里已有的 llm 包装
+from llm import chat_once   # 使用我们刚刚封装的便捷函数
 from layer3.tls13.prompts.verify import VERIFY_PROMPT
 
 def verify_extracted(state: dict) -> dict:
@@ -21,10 +21,6 @@ def verify_extracted(state: dict) -> dict:
         }
 
     # ---- 正常路径：走 LLM ----
-    import json
-    from llm import llm
-    from layer3.tls13.prompts.verify import VERIFY_PROMPT
-
     tried = state.get("case_tried", [])
     user = VERIFY_PROMPT.format(
         case=tried[-1] if tried else "none",
@@ -32,12 +28,16 @@ def verify_extracted(state: dict) -> dict:
         sh_hex_short=sh_hex[:200], sh_len=len(sh_hex)//2,
         meta_json=json.dumps(meta, ensure_ascii=False, default=str),
     )
-    resp = llm(user, response_format="json")
+    
+    # 改回使用 chat_once 进行字符串交互
+    resp = chat_once(user, response_format="json")
+    
     try:
         parsed = json.loads(resp)
     except Exception:
         parsed = {"extract_ok": bool(ch_hex and sh_hex),
                   "confidence": 0.5, "skip_remaining": False}
+                  
     return {
         **state,
         "extract_ok":           bool(parsed.get("extract_ok")),

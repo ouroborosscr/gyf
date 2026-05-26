@@ -1,0 +1,69 @@
+{
+  "skill_id": "frp_quic",
+  "title": "FRP QUIC 模式检测",
+  "parent_doc": "frp_internal_penetration",
+
+  "matching_features": {
+    "text_description": "FRP QUIC 模式使用 UDP + QUIC（RFC 9000）协议传输 frp 控制流，最显著特征是 QUIC 握手的 ALPN 字段为字符串 'frp'（正常 HTTP/3 流量 ALPN 为 'h3'）。心跳周期约 10 秒，每次 2 个小 UDP 包。",
+    "samples": [
+      {"flow_summary": "UDP/7003 长连接，QUIC Initial 包，ALPN='frp'，10秒间隔的对包模式", "weight": 1.0}
+    ]
+  },
+
+  "specific_signatures": {
+    "transport": "UDP",
+    "quic_version": "1 (0x00000001)",
+    "alpn_protocol": "frp",
+    "heartbeat_period_sec": 10,
+    "heartbeat_packets_per_burst": 2,
+    "mtu_packet_pct": 45,
+    "comment": "ALPN='frp' 是 frp 源码硬编码值，目前无任何合法协议使用此 ALPN"
+  },
+
+  "detection_workflow": [
+    {
+      "step_id": 1,
+      "step_name": "找出 UDP 长连接",
+      "tool": "pcap_conversations",
+      "params": {"proto": "udp", "limit": 20},
+      "expect": "存在 duration > 60s 的 UDP 会话",
+      "next_on_fail": "skip"
+    },
+    {
+      "step_id": 2,
+      "step_name": "提取 QUIC ALPN（决定性步骤）",
+      "tool": "pcap_quic_handshake",
+      "params": {},
+      "expect": "has_frp_alpn == true",
+      "next_on_success": "go_to_step:4",
+      "next_on_fail": "go_to_step:3"
+    },
+    {
+      "step_id": 3,
+      "step_name": "如果 QUIC 内容被加密看不到 ALPN，退化到行为分析",
+      "tool": "pcap_detect_heartbeat",
+      "params": {"max_packet_size": 200},
+      "expect": "estimated_period_sec ≈ 10",
+      "next_on_fail": "abort"
+    },
+    {
+      "step_id": 4,
+      "step_name": "确认流量方向反转",
+      "tool": "pcap_traffic_direction",
+      "params": {"host_a": "$frpc_ip", "host_b": "$frps_ip"},
+      "expect": "is_internal_penetration_suspect == true"
+    }
+  ],
+
+  "confidence_rules": {
+    "alpn_match_only": 0.95,
+    "alpn + heartbeat_10s": 0.99,
+    "alpn + heartbeat_10s + direction": 1.0,
+    "heartbeat_10s + direction (no alpn)": 0.7
+  },
+
+  "detection_rule_examples": {
+    "suricata": "alert udp any any -> any any (msg:\"FRP-Tunnel: QUIC mode with ALPN=frp\"; content:\"|00 03|frp\"; depth:300; classtype:policy-violation; sid:9000001;)",
+    "zeek": "event ssl_extension_application_layer_protocol_negotiation(c: connection, is_orig: bool, protocols: string_vec) { if (is_orig && \"frp\" in protocols) { Reporter::info(fmt(\"FRP QUIC ALPN detected from %s\", c$id$orig_h)); } }"
+  }
+}

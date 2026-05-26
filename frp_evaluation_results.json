@@ -1,0 +1,174 @@
+[
+  {
+    "pcap": "frp_01_tcp_20260516_191209.pcap",
+    "expected_skill": "frp_tcp",
+    "actual_skill": "frp_tcp",
+    "actual_tool": "frp",
+    "is_attack": true,
+    "confidence": 0.9,
+    "correct": true,
+    "key_evidence_count": 4,
+    "verdict": {
+      "is_attack": true,
+      "attack_type": "intranet_penetration",
+      "tool": "frp",
+      "matched_sub_skill": "frp_tcp",
+      "confidence": 0.9,
+      "reasoning": "匹配 frp_tcp 核心特征（Go JA3 指纹、30 秒精确心跳）且资产风险标签严重印证",
+      "key_evidence": [
+        "is_go_default_ja3: true",
+        "estimated_period_sec: 30.0",
+        "asset_tags: ['frp_indicator_strong', 'self_signed_cert']",
+        "target_port: 7000 (non_standard)"
+      ],
+      "recommended_actions": [
+        "阻断源 IP 192.168.100.20 至目标 IP 192.168.100.10 的连接",
+        "核查目标服务器是否暴露内网服务",
+        "部署 EDR 扫描内网是否存在 FRP 服务端"
+      ]
+    }
+  },
+  {
+    "pcap": "frp_02_tcp_tls_20260516_201905.pcap",
+    "expected_skill": "frp_tcp_tls",
+    "actual_skill": "frp_tcp",
+    "actual_tool": "frp",
+    "is_attack": true,
+    "confidence": 0.9,
+    "correct": true,
+    "key_evidence_count": 4,
+    "verdict": {
+      "is_attack": true,
+      "attack_type": "intranet_penetration",
+      "tool": "frp",
+      "matched_sub_skill": "frp_tcp",
+      "confidence": 0.9,
+      "reasoning": "尽管流量方向检测器判定为假阴性，但 JA3 指纹（Go 默认）、30 秒精确心跳、非标端口 7001 结合资产强风险标签（frp_indicator_strong、自签名证书）共同确证为 FRP-TCP 模式。",
+      "key_evidence": [
+        "TLS JA3 指纹 2196848d... 与 Go 默认 FRP 一致",
+        "30.0s 周期性心跳满足 FRP 特征",
+        "资产记录显示目标包含 frp_indicator_strong 标签",
+        "非标准端口 7001 上建立了 TLS 连接且使用自签名证书"
+      ],
+      "recommended_actions": [
+        "阻断与 192.168.100.10:7001 的流量连接",
+        "隔离内部主机 192.168.100.20 进行调查",
+        "分析自签名证书 Replay 指纹以追踪 C2"
+      ]
+    }
+  },
+  {
+    "pcap": "frp_03_kcp_20260516_202240.pcap",
+    "expected_skill": "frp_kcp",
+    "actual_skill": "frp_kcp",
+    "actual_tool": "frp",
+    "is_attack": true,
+    "confidence": 0.9,
+    "correct": true,
+    "key_evidence_count": 4,
+    "verdict": {
+      "is_attack": true,
+      "attack_type": "intranet_penetration",
+      "tool": "frp",
+      "matched_sub_skill": "frp_kcp",
+      "confidence": 0.9,
+      "reasoning": "UDP 长会话结合高 MTU 占比（63.35%）且排除 QUIC 握手的特征高度符合 frp_kcp 模式，资产标签与流量模式高度交叉印证",
+      "key_evidence": [
+        "流量锚点为 UDP 端口 7002 且持续时间 132s（>60s）",
+        "MTU 大包占比 63.35% 符合 KCP 特征",
+        "无 QUIC 握手包排除 frp_quic",
+        "资产记录显示 port 7002 标签 long_udp_session 及 frp_indicator_strong"
+      ],
+      "recommended_actions": [
+        "阻断目标 UDP 端口 7002 的入站访问",
+        "隔离源 IP 192.168.100.20 并审计主机安全状态",
+        "核查内网资产标签 c2.attacker-lab.test 指向的域名解析策略"
+      ]
+    }
+  },
+  {
+    "pcap": "frp_04_quic_20260516_203131.pcap",
+    "expected_skill": "frp_quic",
+    "actual_skill": "frp_quic",
+    "actual_tool": "frp",
+    "is_attack": true,
+    "confidence": 1.0,
+    "correct": true,
+    "key_evidence_count": 4,
+    "verdict": {
+      "is_attack": true,
+      "attack_type": "intranet_penetration",
+      "tool": "frp",
+      "matched_sub_skill": "frp_quic",
+      "confidence": 1.0,
+      "reasoning": "frp_quic 决定性指纹（QUIC ALPN=frp）硬性命中，且资产情报确认为 C2 内网穿透场景。",
+      "key_evidence": [
+        "QUIC 握手检测到 ALPN 字段包含 'frp'（硬指纹PASS）",
+        "资产记录目标端口 7003 标签为 'alpn_anomaly_frp' 且服务类型为 quic",
+        "流量上下文显示攻击风险评分 9.5 且有 attacker-lab.test C2 域名关联",
+        "UDP 长会话伴随 10s 周期性心跳"
+      ],
+      "recommended_actions": [
+        "立即封禁目标 UDP 端口 7003 及源 IP 流量",
+        "隔离主机 192.168.100.20 并核查进程进程",
+        "排查内网中是否存在被攻陷的 NAT 穿透跳板",
+        "针对厂商记录的主机名 c2.attacker-lab.test 进行威胁情报溯源"
+      ]
+    }
+  },
+  {
+    "pcap": "frp_05_ws_20260516_203540.pcap",
+    "expected_skill": "frp_ws",
+    "actual_skill": "frp_ws",
+    "actual_tool": "frp",
+    "is_attack": true,
+    "confidence": 1.0,
+    "correct": true,
+    "key_evidence_count": 3,
+    "verdict": {
+      "is_attack": true,
+      "attack_type": "intranet_penetration",
+      "tool": "frp",
+      "matched_sub_skill": "frp_ws",
+      "confidence": 1.0,
+      "reasoning": "Hard fingerprint detection (WebSocket upgrade path /~!frp) passed, timing matches FRP heartbeat, and asset tags corroborate high-risk FRP WebSocket traffic.",
+      "key_evidence": [
+        "frp_ws Step 1 Hard PASS: has_frp_websocket_path == true",
+        "Periodic heartbeat confirmed at 30.0s intervals",
+        "Asset record tags 'frp_websocket_suspect' and 'frp_indicator_strong' match traffic context"
+      ],
+      "recommended_actions": [
+        "Block TCP port 7004 and 80/443 from external access immediately",
+        "Isolate affected host 192.168.100.10 from internal network",
+        "Initiate investigation on C2 domain 'c2.attacker-lab.test' and connected client IPs"
+      ]
+    }
+  },
+  {
+    "pcap": "frp_06_wss_20260516_232753.pcap",
+    "expected_skill": "frp_wss",
+    "actual_skill": "frp_wss",
+    "actual_tool": "frp",
+    "is_attack": false,
+    "confidence": 0.4,
+    "correct": true,
+    "key_evidence_count": 3,
+    "verdict": {
+      "is_attack": false,
+      "attack_type": "unknown",
+      "tool": "frp",
+      "matched_sub_skill": "frp_wss",
+      "confidence": 0.4,
+      "key_evidence": [
+        "[frp_wss] step1 提取 TLS Client Hello 和 SNI: PASS",
+        "[frp_wss] step2 检查 JA3 指纹: PASS",
+        "[frp_wss] step4 证书自签 + SAN 异常检查: PASS"
+      ],
+      "recommended_actions": [
+        "阻断目标 IP",
+        "审查内网主机异常进程",
+        "用 frp_wss 模式的检测规则部署到 IDS"
+      ]
+    }
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "skill_id": "frp_ws",
+  "title": "FRP WebSocket 模式检测（明文）",
+  "parent_doc": "frp_internal_penetration",
+
+  "matching_features": {
+    "text_description": "FRP WebSocket（明文）模式：frpc 向 frps bindPort 发起 HTTP GET /~!frp 升级请求，frps 返回 101 Switching Protocols 后切换到 WebSocket 帧通信。URI '/~!frp' 是 frp 源码硬编码常量（参考 issue #5278），目前 v0.68.x 无法通过配置修改。这是 WS/WSS 模式最强的检测指纹。",
+    "samples": [
+      {"flow_summary": "HTTP GET 请求 URI=/~!frp，Upgrade: websocket，Host 字段是 IP:Port 形式", "weight": 1.0}
+    ]
+  },
+
+  "specific_signatures": {
+    "transport": "TCP",
+    "outer_protocol": "HTTP/1.1",
+    "inner_protocol": "WebSocket",
+    "hardcoded_uri": "/~!frp",
+    "heartbeat_period_sec": 30,
+    "heartbeat_packets_per_burst": 7
+  },
+
+  "detection_workflow": [
+    {
+      "step_id": 1,
+      "step_name": "提取 WebSocket 升级请求（决定性步骤）",
+      "tool": "pcap_websocket_handshake",
+      "params": {},
+      "expect": "has_frp_websocket_path == true"
+    },
+    {
+      "step_id": 2,
+      "step_name": "若 step 1 失败，用字节模式搜索",
+      "tool": "pcap_byte_pattern_search",
+      "params": {"pattern": "/~!frp", "is_hex": false},
+      "expect": "match_count > 0",
+      "rationale": "防止 HTTP 解析失败时漏检"
+    },
+    {
+      "step_id": 3,
+      "step_name": "确认 30 秒心跳",
+      "tool": "pcap_detect_heartbeat",
+      "params": {},
+      "expect": "estimated_period_sec in [25, 35]"
+    }
+  ],
+
+  "confidence_rules": {
+    "uri_match_only": 0.95,
+    "uri + heartbeat_30s": 0.99,
+    "uri + heartbeat_30s + direction": 1.0
+  },
+
+  "detection_rule_examples": {
+    "suricata": "alert http any any -> any any (msg:\"FRP-Tunnel: WebSocket upgrade to /~!frp\"; flow:established,to_server; http.method; content:\"GET\"; http.uri; content:\"/~!frp\"; depth:6; http.header; content:\"Upgrade|3a 20|websocket\"; classtype:policy-violation; sid:9000002;)"
+  }
+}

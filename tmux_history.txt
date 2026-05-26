@@ -1,0 +1,1893 @@
+【当前 skill 的特征】
+{"transport": "UDP", "mtu_packet_pct_min": 60, "typical_packet_size_range": "1280-1400", "heartbeat_period_sec": 30, "heartbeat_packets_per_burst": "4-8 (抖动)", "comment": "KCP 不加密（除非额外配置），但传输内容是 frp 协议而非明
+文"}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 9.85s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+EXECUTE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #55  —  judge_step(frp_kcp.找_UDP_长会话)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(821 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_kcp
+【步骤说明】找 UDP 长会话
+【调用工具】pcap_conversations
+【预期条件】duration > 60s
+【工具实际输出】
+{"ok": true, "conversations": [{"endpoint_a": "192.168.100.20:45127", "endpoint_b": "192.168.100.10:7003", "frames_a_to_b": 59, "bytes_a_to_b": 13312, "frames_b_to_a": 144, "bytes_b_to_a": 138240, "total_frames": 203, "total_byte
+s": 152576, "rel_start_sec": 0.0, "duration_sec": 127.7029}], "proto": "udp"}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 7.40s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #56  —  judge_step(frp_kcp.包大小分布检查)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(932 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_kcp
+【步骤说明】包大小分布检查
+【调用工具】pcap_packet_size_distribution
+【预期条件】mtu_pct > 60
+【工具实际输出】
+{"ok": true, "buckets": {"40-79": {"count": 74, "avg": 69.45, "percent": 36.45}, "80-159": {"count": 19, "avg": 124.0, "percent": 9.36}, "160-319": {"count": 11, "avg": 218.73, "percent": 5.42}, "320-639": {"count": 6, "avg": 437
+.67, "percent": 2.96}, "640-1279": {"count": 1, "avg": 1263.0, "percent": 0.49}, "1280-2559": {"count": 92, "avg": 1469.89, "percent": 45.32}}, "mtu_pct": 45.32, "small_pct": 45.81}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 7.77s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #57  —  judge_step(frp_kcp.排除_QUIC（否则容易和_frp_quic_重叠）)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(670 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_kcp
+【步骤说明】排除 QUIC（否则容易和 frp_quic 重叠）
+【调用工具】pcap_quic_handshake
+【预期条件】initial_packets_count == 0
+【工具实际输出】
+{"ok": true, "quic_versions": ["1"], "alpn_protocols": ["frp"], "snis": [], "has_frp_alpn": true, "initial_packets_count": 6}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 6.40s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #58  —  judge_step(frp_kcp.心跳周期检查)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(889 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_kcp
+【步骤说明】心跳周期检查
+【调用工具】pcap_detect_heartbeat
+【预期条件】estimated_period_sec in [25, 35]
+【工具实际输出】
+{"ok": true, "small_packets_count": 100, "buckets_per_second": {"0": 18, "10": 2, "16": 17, "19": 8, "22": 10, "25": 15, "28": 9, "38": 2, "48": 2, "58": 2, "68": 2, "78": 2, "88": 2, "98": 2, "108": 2, "118": 2, "127": 3}, "cand
+idate_periods": [10, 19, 22, 28, 38, 48, 58, 68, 78, 88, 98, 108, 118, 127], "estimated_period_sec": 10.0, "is_periodic": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 6.67s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #59  —  skill_gate(frp_quic)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(607 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_quic — FRP QUIC 模式检测
+
+【已收集证据】
+  - [frp_kcp] 找 UDP 长会话: PASS
+  - [frp_kcp] 包大小分布检查: FAIL
+  - [frp_kcp] 排除 QUIC（否则容易和 frp_quic 重叠）: FAIL
+  - [frp_kcp] 心跳周期检查: FAIL
+
+【当前 skill 的特征】
+{"transport": "UDP", "quic_version": "1 (0x00000001)", "alpn_protocol": "frp", "heartbeat_period_sec": 10, "heartbeat_packets_per_burst": 2, "mtu_packet_pct": 45, "comment": "ALPN='frp' 是 frp 源码硬编码值，目前无任何合法协议使用
+此 ALPN"}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 18.77s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+EXECUTE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #60  —  judge_step(frp_quic.找出_UDP_长连接)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(835 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_quic
+【步骤说明】找出 UDP 长连接
+【调用工具】pcap_conversations
+【预期条件】存在 duration > 60s 的 UDP 会话
+【工具实际输出】
+{"ok": true, "conversations": [{"endpoint_a": "192.168.100.20:45127", "endpoint_b": "192.168.100.10:7003", "frames_a_to_b": 59, "bytes_a_to_b": 13312, "frames_b_to_a": 144, "bytes_b_to_a": 138240, "total_frames": 203, "total_byte
+s": 152576, "rel_start_sec": 0.0, "duration_sec": 127.7029}], "proto": "udp"}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 8.21s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #61  —  judge_step(frp_quic.提取_QUIC_ALPN（决定性步骤）)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(658 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_quic
+【步骤说明】提取 QUIC ALPN（决定性步骤）
+【调用工具】pcap_quic_handshake
+【预期条件】has_frp_alpn == true
+【工具实际输出】
+{"ok": true, "quic_versions": ["1"], "alpn_protocols": ["frp"], "snis": [], "has_frp_alpn": true, "initial_packets_count": 6}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 6.43s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #62  —  judge_step(frp_quic.如果_QUIC_内容被加密看不到_ALPN，退化到行为分析)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(906 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_quic
+【步骤说明】如果 QUIC 内容被加密看不到 ALPN，退化到行为分析
+【调用工具】pcap_detect_heartbeat
+【预期条件】estimated_period_sec ≈ 10
+【工具实际输出】
+{"ok": true, "small_packets_count": 100, "buckets_per_second": {"0": 18, "10": 2, "16": 17, "19": 8, "22": 10, "25": 15, "28": 9, "38": 2, "48": 2, "58": 2, "68": 2, "78": 2, "88": 2, "98": 2, "108": 2, "118": 2, "127": 3}, "cand
+idate_periods": [10, 19, 22, 28, 38, 48, 58, 68, 78, 88, 98, 108, 118, 127], "estimated_period_sec": 10.0, "is_periodic": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 8.17s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #63  —  judge_step(frp_quic.确认流量方向反转)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(678 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_quic
+【步骤说明】确认流量方向反转
+【调用工具】pcap_traffic_direction
+【预期条件】is_internal_penetration_suspect == true
+【工具实际输出】
+{"ok": true, "a_to_b_bytes": 135362, "b_to_a_bytes": 13658, "ratio_b_to_a_over_a_to_b": 0.1, "is_internal_penetration_suspect": false}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 5.91s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #64  —  skill_gate(frp_tcp_tls)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(803 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_tcp_tls — FRP TCP+TLS 模式检测
+
+【已收集证据】
+  - [frp_kcp] 找 UDP 长会话: PASS
+  - [frp_kcp] 包大小分布检查: FAIL
+  - [frp_kcp] 排除 QUIC（否则容易和 frp_quic 重叠）: FAIL
+  - [frp_kcp] 心跳周期检查: FAIL
+  - [frp_quic] 找出 UDP 长连接: PASS
+  - [frp_quic] 提取 QUIC ALPN（决定性步骤）: PASS
+  - [frp_quic] 如果 QUIC 内容被加密看不到 ALPN，退化到行为分析: PASS
+  - [frp_quic] 确认流量方向反转: FAIL
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "TLS", "frps_policy": "transport.tls.force = true", "ja3_no_sni": "2196848d251b217de8b2c037e356c11d", "ja3_with_sni": "20b279993ae2e137e62b9647c6d768fb", "heartbeat_period_sec": 30, "heartbe
+at_packets_per_burst": 7}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 136.54s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+DONE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #65  —  final_verdict(audited=frp_kcp,frp_quic)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(3177 字符)
+你是网络流量攻击审计专家，专门识别 FRP 内网穿透工具的 6 种传输模式。基于下面的证据给出最终判定。
+
+【流量上下文摘要】
+- anchor 流: 192.168.100.20:45127 -> 192.168.100.10:7003 (udp), duration=127.7029s, orig_bytes=13312, resp_bytes=138240
+- TLS Client Hello: 1 次，SNI=[]，JA3=['cd34ce26cd2e99c00255ac2759354694'], Go默认JA3=False, 证书=0 (自签=False)
+- 周期性心跳: 周期=10.0s, bursts=None, packets_per_burst=None
+- 大字节数据流: 1 个候选
+- 资产记录 (192.168.100.10, source=SIM (sandbox/lab data)): risk_score=9.5, tags=['suspicious_self_signed_cert', 'multiple_non_standard_ports_open', 'frp_indicator_strong']
+  目标端口 7003/udp: service=quic, ALPN=['frp'], 端口标签=['quic_non_h3', 'alpn_anomaly_frp']
+  历史主机名: ['c2.attacker-lab.test']
+
+【FRP 子模式知识库（每种模式的核心识别特征）】
+- frp_kcp: KCP over UDP 模式。识别：UDP 长会话 + 包大小分布中 MTU 饱和段（1280-2559 字节占比 > 60%）+ 30s 心跳。无 QUIC 握手（区别于 frp_quic）。资产线索：目标 UDP 端口标签 long_udp_session 或 non_dns_non_quic_udp。
+- frp_quic: QUIC 模式。★★★ 决定性指纹：QUIC ALPN = 'frp'（合法 QUIC 是 h3/hq-XX）。辅助：10s 短心跳。资产线索：目标 UDP 端口 alpn 字段包含 'frp' 是决定性。
+
+【已审计 skill 列表】
+frp_kcp, frp_quic
+
+【详细证据（按 skill 分组，★★★ 标记为决定性 hard fingerprint）】
+
+[frp_kcp]
+           ✓ PASS  step1 找 UDP 长会话
+           tool=pcap_conversations, expect=duration > 60s
+           ✗ FAIL  step2 包大小分布检查
+           tool=pcap_packet_size_distribution, expect=mtu_pct > 60
+           工具关键输出: {"mtu_pct": 45.32}
+           ✗ FAIL  step3 排除 QUIC（否则容易和 frp_quic 重叠）
+           tool=pcap_quic_handshake, expect=initial_packets_count == 0
+           工具关键输出: {"has_frp_alpn": true, "snis": []}
+           ✗ FAIL  step4 心跳周期检查
+           tool=pcap_detect_heartbeat, expect=estimated_period_sec in [25, 35]
+           工具关键输出: {"is_periodic": true, "estimated_period_sec": 10.0}
+
+[frp_quic]
+           ✓ PASS  step1 找出 UDP 长连接
+           tool=pcap_conversations, expect=存在 duration > 60s 的 UDP 会话
+  ★★★ HARD ✓ PASS  step2 提取 QUIC ALPN（决定性步骤）
+           tool=pcap_quic_handshake, expect=has_frp_alpn == true
+           工具关键输出: {"has_frp_alpn": true, "snis": []}
+           ✓ PASS  step3 如果 QUIC 内容被加密看不到 ALPN，退化到行为分析
+           tool=pcap_detect_heartbeat, expect=estimated_period_sec ≈ 10
+           工具关键输出: {"is_periodic": true, "estimated_period_sec": 10.0}
+           ✗ FAIL  step4 确认流量方向反转
+           tool=pcap_traffic_direction, expect=is_internal_penetration_suspect == true
+           工具关键输出: {"is_internal_penetration_suspect": false}
+
+【判定规则 - 严格遵守】
+1. 如果任何证据被标注为 ★★★ HARD 且判定为 PASS，则该 skill 必为最终答案，confidence = 1.0
+2. 没有 hard fingerprint 命中时，综合 PASS 数量 + 每个 skill 的"特异性证据"（独有的、其他模式不会 PASS 的步骤）做选择
+3. ★ 资产交叉印证：流量上下文里的「资产记录」是独立于 skill 检测的第三方证据。当 skill 命中的特征与资产标签一致时（如 frp_wss 命中 SNI 可疑 + 资产显示目标 IP:443 是 nginx + 自签证书），confidence 应提升至 ≥ 0.85
+4. frp_tcp 和 frp_tcp_tls 在网络层无法区分（v0.50+ 默认 TLS）；只看见 TCP/TLS 但无 SNI 异常时优先 frp_tcp
+5. frp_wss 必须看到「SNI 可疑域名 + Go JA3 + 443 端口」三者组合；如果资产显示目标 443 是 nginx，则更应判 frp_wss 而非 frp_tcp
+6. frp_ws 必须看到 HTTP URI = /~!frp 才能确认；只有心跳 PASS 不够
+
+【输出格式 - 只输出 JSON，不要任何其他文字】
+{
+  "is_attack": true/false,
+  "attack_type": "intranet_penetration / unknown",
+  "tool": "frp / nps / chisel / unknown",
+  "matched_sub_skill": "frp_xxx (必须是已审计的 skill_id 之一)",
+  "confidence": 0.0-1.0,
+  "reasoning": "为什么选这个 skill（一句话）",
+  "key_evidence": ["证据1", "证据2", "证据3"],
+  "recommended_actions": ["..."]
+}
+
+
+【调用中...】
+【LLM 完成】耗时 43.05s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+{
+  "is_attack": true,
+  "attack_type": "intranet_penetration",
+  "tool": "frp",
+  "matched_sub_skill": "frp_quic",
+  "confidence": 1.0,
+  "reasoning": "frp_quic 决定性指纹（QUIC ALPN=frp）硬性命中，且资产情报确认为 C2 内网穿透场景。",
+  "key_evidence": [
+    "QUIC 握手检测到 ALPN 字段包含 'frp'（硬指纹PASS）",
+    "资产记录目标端口 7003 标签为 'alpn_anomaly_frp' 且服务类型为 quic",
+    "流量上下文显示攻击风险评分 9.5 且有 attacker-lab.test C2 域名关联",
+    "UDP 长会话伴随 10s 周期性心跳"
+  ],
+  "recommended_actions": [
+    "立即封禁目标 UDP 端口 7003 及源 IP 流量",
+    "隔离主机 192.168.100.20 并核查进程进程",
+    "排查内网中是否存在被攻陷的 NAT 穿透跳板",
+    "针对厂商记录的主机名 c2.attacker-lab.test 进行威胁情报溯源"
+  ]
+}
+══════════════════════════════════════════════════════════════════════════════
+
+  ✅ 判定: frp_quic (conf=1.00)
+
+[5/6] frp_05_ws_20260516_203540.pcap (期望: frp_ws)
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #66  —  doc_gate(frp_internal_penetration)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(893 字符)
+你正在做攻击审计的"是否进入下一阶段"决策。
+
+【已收集的证据】
+  (暂无证据)
+
+【当前候选文档】
+- ID: frp_internal_penetration
+- 描述: FRP 是 Go 语言编写的反向代理工具，被红队广泛用于内网穿透。frpc（客户端）部署在内网主机上，主动连接公网 frps（服务端），建立反向隧道；外部用户通过 frps 暴露的端口访问到内网服务。所有 frp 流量都展现出强烈的'反向流量不对称'
+特征：frpc 主动出站长连接（>60s）、上下行流量比 1:10 左右（内网到外网的下行远大于上行）、30秒精确心跳（QUIC 模式为 10秒）。frp 支持六种 transport 协议：TCP、TCP+TLS、KCP、QUIC、WebSocket、WSS。
+- 关键特征: {"traffic_direction_ratio": ">5:1（内网主机出站远大于入站）", "session_duration_sec": ">60", "frpc_initiates_connection": true, "heartbeat_period_sec": "30 (KCP/TCP/TLS/WS/WSS) 或 10 (QUIC)", "heartbeat_packet_count_p
+er_burst": "7（KCP 抖动 4-8、QUIC 为 2）", "go_default_ja3_hashes": ["2196848d251b217de8b2c037e356c11d", "20b279993ae2e137e62b9647c6d768fb"]}
+
+【你的任务】
+判断是否需要进入该文档的详细审计，输出之一：
+- "ENTER" 表示需要进入该文档（前面证据不足以下结论）
+- "DONE"  表示已有足够证据下最终结论，无需再审计
+
+【判定原则】
+1. 如果已经命中 hard fingerprint（ALPN=frp / URI=/~!frp 等），输出 DONE。
+2. 否则输出 ENTER。
+
+只输出 ENTER 或 DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 5.45s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+ENTER
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #67  —  rank_skills(6 candidates)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(517 字符)
+你正在对 FRP 内网穿透的子模式检测顺序做决策。
+
+【当前流量特征摘要】
+{
+  "flow_count": 1,
+  "proto_dist": {
+    "tcp": 1,
+    "udp": 0
+  },
+  "dst_ports": [
+    7004
+  ],
+  "has_tls": false,
+  "tls_snis": [],
+  "has_heartbeat": true,
+  "heartbeat_period": 30.0,
+  "anchor_dst_port": "7004",
+  "data_stream_count": 1
+}
+
+【候选 sub_skills】
+  - frp_quic:
+  - frp_ws:
+  - frp_kcp:
+  - frp_tcp:
+  - frp_tcp_tls:
+  - frp_wss:
+
+【你的任务】
+根据流量特征，把这些 sub_skills 按"最有可能命中"的概率从高到低排序，输出每行一个 skill_id。
+只输出 skill_id 列表，不要任何其他文字。
+
+例如：
+frp_quic
+frp_kcp
+frp_ws
+...
+
+
+【调用中...】
+【LLM 完成】耗时 89.23s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+frp_tcp
+frp_ws
+frp_tcp_tls
+frp_wss
+frp_kcp
+frp_quic
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #68  —  skill_gate(frp_tcp)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(633 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_tcp — FRP TCP 模式检测
+
+【已收集证据】
+  (暂无证据)
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "TLS (默认开启)", "ja3_no_sni": "2196848d251b217de8b2c037e356c11d", "ja3_with_sni": "20b279993ae2e137e62b9647c6d768fb", "heartbeat_period_sec": 30, "heartbeat_packets_per_burst": 7, "typical
+_port": "非标准（7000-7005 默认，但可配置任意）", "wireshark_misidentification": "端口 7000 可能被 Wireshark 误识别为 'gryphon' 协议，分析时需要 -d tcp.port==7000,tls 强制重新解析"}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 11.17s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+EXECUTE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #69  —  judge_step(frp_tcp.提取_TLS_Client_Hello（如非常规端口需强制解)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(579 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】提取 TLS Client Hello（如非常规端口需强制解析）
+【调用工具】pcap_client_hello_details
+【预期条件】存在 Client Hello
+【工具实际输出】
+{"ok": true, "client_hellos": []}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 6.35s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #70  —  judge_step(frp_tcp.JA3_指纹核对)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(599 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】JA3 指纹核对
+【调用工具】pcap_extract_ja3
+【预期条件】is_go_default_ja3 == true
+【工具实际输出】
+{"ok": true, "ja3_hashes": [], "unique_ja3": [], "is_go_default_ja3": false}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 10.40s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #71  —  judge_step(frp_tcp.心跳周期检查)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(799 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】心跳周期检查
+【调用工具】pcap_detect_heartbeat
+【预期条件】estimated_period_sec in [25, 35]
+【工具实际输出】
+{"ok": true, "small_packets_count": 172, "buckets_per_second": {"0": 30, "12": 30, "15": 20, "18": 18, "21": 20, "24": 21, "30": 7, "60": 7, "90": 7, "120": 7, "128": 5}, "candidate_periods": [30, 60, 90, 120, 128], "estimated_pe
+riod_sec": 30.0, "is_periodic": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 5.48s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #72  —  judge_step(frp_tcp.流量方向反转)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(646 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】流量方向反转
+【调用工具】pcap_traffic_direction
+【预期条件】ratio > 5
+【工具实际输出】
+{"ok": true, "a_to_b_bytes": 126984, "b_to_a_bytes": 12055, "ratio_b_to_a_over_a_to_b": 0.09, "is_internal_penetration_suspect": false}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 76.65s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #73  —  skill_gate(frp_ws)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(570 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_ws — FRP WebSocket 模式检测（明文）
+
+【已收集证据】
+  - [frp_tcp] 提取 TLS Client Hello（如非常规端口需强制解析）: FAIL
+  - [frp_tcp] JA3 指纹核对: FAIL
+  - [frp_tcp] 心跳周期检查: PASS
+  - [frp_tcp] 流量方向反转: FAIL
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "HTTP/1.1", "inner_protocol": "WebSocket", "hardcoded_uri": "/~!frp", "heartbeat_period_sec": 30, "heartbeat_packets_per_burst": 7}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 71.64s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+EXECUTE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #74  —  judge_step(frp_ws.提取_WebSocket_升级请求（决定性步骤）)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(857 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_ws
+【步骤说明】提取 WebSocket 升级请求（决定性步骤）
+【调用工具】pcap_websocket_handshake
+【预期条件】has_frp_websocket_path == true
+【工具实际输出】
+{"ok": true, "upgrade_requests": [{"frame": 4, "method": "GET", "uri": "/~!frp", "host": "192.168.100.10:7004", "user_agent": "", "websocket_key": "RXv+Gn7USqMPKAxY6izdFw=="}], "upgrade_responses": [{"frame": 6, "status": 101, "a
+ccept_key": "NskUiGV/+cbN0aJKeI/gqBPIi0A="}], "has_frp_websocket_path": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 7.10s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #75  —  judge_step(frp_ws.若_step_1_失败，用字节模式搜索)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(623 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_ws
+【步骤说明】若 step 1 失败，用字节模式搜索
+【调用工具】pcap_byte_pattern_search
+【预期条件】match_count > 0
+【工具实际输出】
+{"ok": true, "matches": [{"frame": 4, "context": "GET /~!frp HTTP/1.1 "}], "match_count": 1}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 5.85s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #76  —  judge_step(frp_ws.确认_30_秒心跳)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(801 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_ws
+【步骤说明】确认 30 秒心跳
+【调用工具】pcap_detect_heartbeat
+【预期条件】estimated_period_sec in [25, 35]
+【工具实际输出】
+{"ok": true, "small_packets_count": 172, "buckets_per_second": {"0": 30, "12": 30, "15": 20, "18": 18, "21": 20, "24": 21, "30": 7, "60": 7, "90": 7, "120": 7, "128": 5}, "candidate_periods": [30, 60, 90, 120, 128], "estimated_pe
+riod_sec": 30.0, "is_periodic": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 6.04s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #77  —  skill_gate(frp_tcp_tls)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(765 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_tcp_tls — FRP TCP+TLS 模式检测
+
+【已收集证据】
+  - [frp_tcp] 提取 TLS Client Hello（如非常规端口需强制解析）: FAIL
+  - [frp_tcp] JA3 指纹核对: FAIL
+  - [frp_tcp] 心跳周期检查: PASS
+  - [frp_tcp] 流量方向反转: FAIL
+  - [frp_ws] 提取 WebSocket 升级请求（决定性步骤）: PASS
+  - [frp_ws] 若 step 1 失败，用字节模式搜索: PASS
+  - [frp_ws] 确认 30 秒心跳: PASS
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "TLS", "frps_policy": "transport.tls.force = true", "ja3_no_sni": "2196848d251b217de8b2c037e356c11d", "ja3_with_sni": "20b279993ae2e137e62b9647c6d768fb", "heartbeat_period_sec": 30, "heartbe
+at_packets_per_burst": 7}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 40.07s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+SKIP
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #78  —  skill_gate(frp_wss)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(942 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_wss — FRP WSS 模式检测（含 nginx 资产联动）
+
+【已收集证据】
+  - [frp_tcp] 提取 TLS Client Hello（如非常规端口需强制解析）: FAIL
+  - [frp_tcp] JA3 指纹核对: FAIL
+  - [frp_tcp] 心跳周期检查: PASS
+  - [frp_tcp] 流量方向反转: FAIL
+  - [frp_ws] 提取 WebSocket 升级请求（决定性步骤）: PASS
+  - [frp_ws] 若 step 1 失败，用字节模式搜索: PASS
+  - [frp_ws] 确认 30 秒心跳: PASS
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "TLS", "inner_protocol": "WebSocket (path: /~!frp, hardcoded in frp source)", "typical_port": 443, "frpc_ja3": "20b279993ae2e137e62b9647c6d768fb", "heartbeat_period_sec": 30, "heartbeat_pack
+ets_per_burst": 7, "tls_terminator": "nginx (或 caddy/traefik)", "tls_terminator_evidence_chain": ["目标 IP 探查响应 Server: nginx/x.x.x", "目标域名 PKI 校验失败（自签证书）", "证书 SAN 仅包含可疑域名（如 *.attacker-lab.test）"]}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 71.19s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+DONE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #79  —  final_verdict(audited=frp_ws,frp_tcp)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(3103 字符)
+你是网络流量攻击审计专家，专门识别 FRP 内网穿透工具的 6 种传输模式。基于下面的证据给出最终判定。
+
+【流量上下文摘要】
+- anchor 流: 192.168.100.20:60646 -> 192.168.100.10:7004 (tcp), duration=128.6293s, orig_bytes=12288, resp_bytes=129024
+- TLS Client Hello: 无（明文流量或 QUIC）
+- 周期性心跳: 周期=30.0s, bursts=None, packets_per_burst=None
+- 大字节数据流: 1 个候选
+- 资产记录 (192.168.100.10, source=SIM (sandbox/lab data)): risk_score=9.5, tags=['suspicious_self_signed_cert', 'multiple_non_standard_ports_open', 'frp_indicator_strong']
+  目标端口 7004/tcp: service=http, Server=(none), 端口标签=['http_no_server_header', 'frp_websocket_suspect']
+  历史主机名: ['c2.attacker-lab.test']
+
+【FRP 子模式知识库（每种模式的核心识别特征）】
+- frp_ws: WebSocket 明文模式。★★★ 决定性指纹：HTTP URI = /~!frp（硬编码在 frp 源码 issue #5278）。辅助：30s 心跳，明文 HTTP 1.1 Upgrade。资产线索：目标 TCP 端口有 HTTP 但 server_header 缺失或非主流，端口标签 frp_websocket_suspect
+。
+- frp_tcp: TCP 默认模式（v0.50+ 默认启用 TLS）。识别：Go 默认 JA3 + 30s 精确心跳 + 流量方向反转（resp/orig > 5）。无 hard fingerprint。资产线索：目标端口非标准（非 80/443/22 等常见），server_header 为 unknown，但有自签证书。
+
+【已审计 skill 列表】
+frp_ws, frp_tcp
+
+【详细证据（按 skill 分组，★★★ 标记为决定性 hard fingerprint）】
+
+[frp_tcp]
+           ✗ FAIL  step1 提取 TLS Client Hello（如非常规端口需强制解析）
+           tool=pcap_client_hello_details, expect=存在 Client Hello
+           工具关键输出: {"client_hellos": []}
+           ✗ FAIL  step2 JA3 指纹核对
+           tool=pcap_extract_ja3, expect=is_go_default_ja3 == true
+           工具关键输出: {"is_go_default_ja3": false}
+           ✓ PASS  step4 心跳周期检查
+           tool=pcap_detect_heartbeat, expect=estimated_period_sec in [25, 35]
+           工具关键输出: {"is_periodic": true, "estimated_period_sec": 30.0}
+           ✗ FAIL  step5 流量方向反转
+           tool=pcap_traffic_direction, expect=ratio > 5
+           工具关键输出: {"is_internal_penetration_suspect": false}
+
+[frp_ws]
+  ★★★ HARD ✓ PASS  step1 提取 WebSocket 升级请求（决定性步骤）
+           tool=pcap_websocket_handshake, expect=has_frp_websocket_path == true
+           工具关键输出: {"has_frp_websocket_path": true}
+  ★★★ HARD ✓ PASS  step2 若 step 1 失败，用字节模式搜索
+           tool=pcap_byte_pattern_search, expect=match_count > 0
+           工具关键输出: {"match_count": 1}
+           ✓ PASS  step3 确认 30 秒心跳
+           tool=pcap_detect_heartbeat, expect=estimated_period_sec in [25, 35]
+           工具关键输出: {"is_periodic": true, "estimated_period_sec": 30.0}
+
+【判定规则 - 严格遵守】
+1. 如果任何证据被标注为 ★★★ HARD 且判定为 PASS，则该 skill 必为最终答案，confidence = 1.0
+2. 没有 hard fingerprint 命中时，综合 PASS 数量 + 每个 skill 的"特异性证据"（独有的、其他模式不会 PASS 的步骤）做选择
+3. ★ 资产交叉印证：流量上下文里的「资产记录」是独立于 skill 检测的第三方证据。当 skill 命中的特征与资产标签一致时（如 frp_wss 命中 SNI 可疑 + 资产显示目标 IP:443 是 nginx + 自签证书），confidence 应提升至 ≥ 0.85
+4. frp_tcp 和 frp_tcp_tls 在网络层无法区分（v0.50+ 默认 TLS）；只看见 TCP/TLS 但无 SNI 异常时优先 frp_tcp
+5. frp_wss 必须看到「SNI 可疑域名 + Go JA3 + 443 端口」三者组合；如果资产显示目标 443 是 nginx，则更应判 frp_wss 而非 frp_tcp
+6. frp_ws 必须看到 HTTP URI = /~!frp 才能确认；只有心跳 PASS 不够
+
+【输出格式 - 只输出 JSON，不要任何其他文字】
+{
+  "is_attack": true/false,
+  "attack_type": "intranet_penetration / unknown",
+  "tool": "frp / nps / chisel / unknown",
+  "matched_sub_skill": "frp_xxx (必须是已审计的 skill_id 之一)",
+  "confidence": 0.0-1.0,
+  "reasoning": "为什么选这个 skill（一句话）",
+  "key_evidence": ["证据1", "证据2", "证据3"],
+  "recommended_actions": ["..."]
+}
+
+
+【调用中...】
+【LLM 完成】耗时 38.82s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+{
+  "is_attack": true,
+  "attack_type": "intranet_penetration",
+  "tool": "frp",
+  "matched_sub_skill": "frp_ws",
+  "confidence": 1.0,
+  "reasoning": "Hard fingerprint detection (WebSocket upgrade path /~!frp) passed, timing matches FRP heartbeat, and asset tags corroborate high-risk FRP WebSocket traffic.",
+  "key_evidence": [
+    "frp_ws Step 1 Hard PASS: has_frp_websocket_path == true",
+    "Periodic heartbeat confirmed at 30.0s intervals",
+    "Asset record tags 'frp_websocket_suspect' and 'frp_indicator_strong' match traffic context"
+  ],
+  "recommended_actions": [
+    "Block TCP port 7004 and 80/443 from external access immediately",
+    "Isolate affected host 192.168.100.10 from internal network",
+    "Initiate investigation on C2 domain 'c2.attacker-lab.test' and connected client IPs"
+  ]
+}
+══════════════════════════════════════════════════════════════════════════════
+
+  ✅ 判定: frp_ws (conf=1.00)
+
+[6/6] frp_06_wss_20260516_232753.pcap (期望: frp_wss)
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #80  —  doc_gate(frp_internal_penetration)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(893 字符)
+你正在做攻击审计的"是否进入下一阶段"决策。
+
+【已收集的证据】
+  (暂无证据)
+
+【当前候选文档】
+- ID: frp_internal_penetration
+- 描述: FRP 是 Go 语言编写的反向代理工具，被红队广泛用于内网穿透。frpc（客户端）部署在内网主机上，主动连接公网 frps（服务端），建立反向隧道；外部用户通过 frps 暴露的端口访问到内网服务。所有 frp 流量都展现出强烈的'反向流量不对称'
+特征：frpc 主动出站长连接（>60s）、上下行流量比 1:10 左右（内网到外网的下行远大于上行）、30秒精确心跳（QUIC 模式为 10秒）。frp 支持六种 transport 协议：TCP、TCP+TLS、KCP、QUIC、WebSocket、WSS。
+- 关键特征: {"traffic_direction_ratio": ">5:1（内网主机出站远大于入站）", "session_duration_sec": ">60", "frpc_initiates_connection": true, "heartbeat_period_sec": "30 (KCP/TCP/TLS/WS/WSS) 或 10 (QUIC)", "heartbeat_packet_count_p
+er_burst": "7（KCP 抖动 4-8、QUIC 为 2）", "go_default_ja3_hashes": ["2196848d251b217de8b2c037e356c11d", "20b279993ae2e137e62b9647c6d768fb"]}
+
+【你的任务】
+判断是否需要进入该文档的详细审计，输出之一：
+- "ENTER" 表示需要进入该文档（前面证据不足以下结论）
+- "DONE"  表示已有足够证据下最终结论，无需再审计
+
+【判定原则】
+1. 如果已经命中 hard fingerprint（ALPN=frp / URI=/~!frp 等），输出 DONE。
+2. 否则输出 ENTER。
+
+只输出 ENTER 或 DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 13.38s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+ENTER
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #81  —  rank_skills(6 candidates)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(545 字符)
+你正在对 FRP 内网穿透的子模式检测顺序做决策。
+
+【当前流量特征摘要】
+{
+  "flow_count": 1,
+  "proto_dist": {
+    "tcp": 1,
+    "udp": 0
+  },
+  "dst_ports": [
+    443
+  ],
+  "has_tls": true,
+  "tls_snis": [
+    "c2.attacker-lab.test"
+  ],
+  "has_heartbeat": false,
+  "heartbeat_period": null,
+  "anchor_dst_port": "443",
+  "data_stream_count": 1
+}
+
+【候选 sub_skills】
+  - frp_quic:
+  - frp_ws:
+  - frp_kcp:
+  - frp_tcp:
+  - frp_tcp_tls:
+  - frp_wss:
+
+【你的任务】
+根据流量特征，把这些 sub_skills 按"最有可能命中"的概率从高到低排序，输出每行一个 skill_id。
+只输出 skill_id 列表，不要任何其他文字。
+
+例如：
+frp_quic
+frp_kcp
+frp_ws
+...
+
+
+【调用中...】
+【LLM 完成】耗时 79.89s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+frp_wss
+frp_tcp_tls
+frp_tcp
+frp_ws
+frp_quic
+frp_kcp
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #82  —  skill_gate(frp_ws)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(443 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_ws — FRP WebSocket 模式检测（明文）
+
+【已收集证据】
+  (暂无证据)
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "HTTP/1.1", "inner_protocol": "WebSocket", "hardcoded_uri": "/~!frp", "heartbeat_period_sec": 30, "heartbeat_packets_per_burst": 7}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 56.53s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+SKIP
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #83  —  skill_gate(frp_tcp_tls)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(526 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_tcp_tls — FRP TCP+TLS 模式检测
+
+【已收集证据】
+  (暂无证据)
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "TLS", "frps_policy": "transport.tls.force = true", "ja3_no_sni": "2196848d251b217de8b2c037e356c11d", "ja3_with_sni": "20b279993ae2e137e62b9647c6d768fb", "heartbeat_period_sec": 30, "heartbe
+at_packets_per_burst": 7}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 53.40s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+EXECUTE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #84  —  skill_gate(frp_tcp)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(633 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_tcp — FRP TCP 模式检测
+
+【已收集证据】
+  (暂无证据)
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "TLS (默认开启)", "ja3_no_sni": "2196848d251b217de8b2c037e356c11d", "ja3_with_sni": "20b279993ae2e137e62b9647c6d768fb", "heartbeat_period_sec": 30, "heartbeat_packets_per_burst": 7, "typical
+_port": "非标准（7000-7005 默认，但可配置任意）", "wireshark_misidentification": "端口 7000 可能被 Wireshark 误识别为 'gryphon' 协议，分析时需要 -d tcp.port==7000,tls 强制重新解析"}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 21.82s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+EXECUTE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #85  —  judge_step(frp_tcp.提取_TLS_Client_Hello（如非常规端口需强制解)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(1658 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】提取 TLS Client Hello（如非常规端口需强制解析）
+【调用工具】pcap_client_hello_details
+【预期条件】存在 Client Hello
+【工具实际输出】
+{"ok": true, "client_hellos": [{"frame": 1574, "version": "1.0", "cipher_suites": ["TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH
+_AES_256_GCM_SHA384", "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256", "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256", "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_ECDSA_WITH_AES_256_CBC
+_SHA", "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA", "TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"], "extensions": ["server_name", "ec_point_formats", "renegotiation_info", "extended_master_secret", "
+signed_certificate_timestamp", "status_request", "supported_groups", "signature_algorithms", "signature_algorithms_cert", "supported_versions", "key_share"], "sni": "c2.attacker-lab.test", "supported_versions": ["1.3", "1.2"], "j
+a3_string": "771,49195-49199-49196-49200-52393-52392-49161-49171-49162-49172-4865-4866-4867,0-11-65281-23-18-5-10-13-50-43-51,4588-29-23-24-25,0", "ja3_hash": "20b279993ae2e137e62b9647c6d768fb"}]}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 6.23s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #86  —  judge_step(frp_tcp.JA3_指纹核对)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(747 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】JA3 指纹核对
+【调用工具】pcap_extract_ja3
+【预期条件】is_go_default_ja3 == true
+【工具实际输出】
+{"ok": true, "ja3_hashes": [{"frame": 0, "hash": "20b279993ae2e137e62b9647c6d768fb", "fullstring": "", "known_as": "Go default TLS (with SNI)"}], "unique_ja3": ["20b279993ae2e137e62b9647c6d768fb"], "is_go_default_ja3": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 5.04s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #87  —  judge_step(frp_tcp.心跳周期检查)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(812 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】心跳周期检查
+【调用工具】pcap_detect_heartbeat
+【预期条件】estimated_period_sec in [25, 35]
+【工具实际输出】
+{"ok": true, "small_packets_count": 132, "buckets_per_second": {"0": 24, "11": 22, "14": 12, "17": 13, "20": 18, "23": 11, "24": 1, "30": 7, "60": 7, "90": 7, "120": 7, "122": 3}, "candidate_periods": [24, 30, 60, 90, 120, 122],
+"estimated_period_sec": 30.0, "is_periodic": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 7.64s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #88  —  judge_step(frp_tcp.流量方向反转)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(646 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_tcp
+【步骤说明】流量方向反转
+【调用工具】pcap_traffic_direction
+【预期条件】ratio > 5
+【工具实际输出】
+{"ok": true, "a_to_b_bytes": 126284, "b_to_a_bytes": 10030, "ratio_b_to_a_over_a_to_b": 0.08, "is_internal_penetration_suspect": false}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 36.77s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #89  —  skill_gate(frp_quic)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(611 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_quic — FRP QUIC 模式检测
+
+【已收集证据】
+  - [frp_tcp] 提取 TLS Client Hello（如非常规端口需强制解析）: PASS
+  - [frp_tcp] JA3 指纹核对: PASS
+  - [frp_tcp] 心跳周期检查: PASS
+  - [frp_tcp] 流量方向反转: FAIL
+
+【当前 skill 的特征】
+{"transport": "UDP", "quic_version": "1 (0x00000001)", "alpn_protocol": "frp", "heartbeat_period_sec": 10, "heartbeat_packets_per_burst": 2, "mtu_packet_pct": 45, "comment": "ALPN='frp' 是 frp 源码硬编码值，目前无任何合法协议使用
+此 ALPN"}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 67.58s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+SKIP
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #90  —  skill_gate(frp_kcp)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(598 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_kcp — FRP KCP 模式检测
+
+【已收集证据】
+  - [frp_tcp] 提取 TLS Client Hello（如非常规端口需强制解析）: PASS
+  - [frp_tcp] JA3 指纹核对: PASS
+  - [frp_tcp] 心跳周期检查: PASS
+  - [frp_tcp] 流量方向反转: FAIL
+
+【当前 skill 的特征】
+{"transport": "UDP", "mtu_packet_pct_min": 60, "typical_packet_size_range": "1280-1400", "heartbeat_period_sec": 30, "heartbeat_packets_per_burst": "4-8 (抖动)", "comment": "KCP 不加密（除非额外配置），但传输内容是 frp 协议而非明
+文"}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 54.27s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+SKIP
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #91  —  skill_gate(frp_wss)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(830 字符)
+你正在子 skill 级别的审计闸门做决策。
+
+【当前文档】frp_internal_penetration
+【当前 skill】frp_wss — FRP WSS 模式检测（含 nginx 资产联动）
+
+【已收集证据】
+  - [frp_tcp] 提取 TLS Client Hello（如非常规端口需强制解析）: PASS
+  - [frp_tcp] JA3 指纹核对: PASS
+  - [frp_tcp] 心跳周期检查: PASS
+  - [frp_tcp] 流量方向反转: FAIL
+
+【当前 skill 的特征】
+{"transport": "TCP", "outer_protocol": "TLS", "inner_protocol": "WebSocket (path: /~!frp, hardcoded in frp source)", "typical_port": 443, "frpc_ja3": "20b279993ae2e137e62b9647c6d768fb", "heartbeat_period_sec": 30, "heartbeat_pack
+ets_per_burst": 7, "tls_terminator": "nginx (或 caddy/traefik)", "tls_terminator_evidence_chain": ["目标 IP 探查响应 Server: nginx/x.x.x", "目标域名 PKI 校验失败（自签证书）", "证书 SAN 仅包含可疑域名（如 *.attacker-lab.test）"]}
+
+【你的任务】
+判断是否需要执行该 skill 的工作流，输出之一：
+- "EXECUTE" 需要执行
+- "SKIP"    跳过（该模式已确定不匹配，或已被其他证据替代）
+- "DONE"    整个文档可以收尾
+
+只输出 EXECUTE / SKIP / DONE 一个词。
+
+
+【调用中...】
+【LLM 完成】耗时 66.39s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+EXECUTE
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #92  —  judge_step(frp_wss.提取_TLS_Client_Hello_和_SNI)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(611 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_wss
+【步骤说明】提取 TLS Client Hello 和 SNI
+【调用工具】pcap_tls_sni_cert
+【预期条件】snis 包含可疑域名（非主流厂商、新注册、动态 DNS）
+【工具实际输出】
+{"ok": true, "snis": ["c2.attacker-lab.test"], "certificates": []}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 7.16s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #93  —  judge_step(frp_wss.检查_JA3_指纹)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(796 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_wss
+【步骤说明】检查 JA3 指纹
+【调用工具】pcap_extract_ja3
+【预期条件】ja3_hashes 中包含 20b279993ae2e137e62b9647c6d768fb，is_go_default_ja3 == true
+【工具实际输出】
+{"ok": true, "ja3_hashes": [{"frame": 0, "hash": "20b279993ae2e137e62b9647c6d768fb", "fullstring": "", "known_as": "Go default TLS (with SNI)"}], "unique_ja3": ["20b279993ae2e137e62b9647c6d768fb"], "is_go_default_ja3": true}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 8.49s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #94  —  judge_step(frp_wss.★_主动探查目标_IP，识别_nginx)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(701 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_wss
+【步骤说明】★ 主动探查目标 IP，识别 nginx
+【调用工具】active_probe_http_server
+【预期条件】is_nginx == true 或 is_caddy == true
+【工具实际输出】
+{"ok": true, "server_header": "", "is_nginx": false, "is_apache": false, "is_caddy": false, "status_code": 0, "tls_cert_cn": "", "tls_cert_san": []}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 7.34s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #95  —  judge_step(frp_wss.证书自签_+_SAN_异常检查)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(630 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_wss
+【步骤说明】证书自签 + SAN 异常检查
+【调用工具】pcap_tls_sni_cert
+【预期条件】certificates[*].is_self_signed == true 或 issuer_cn 是非公开 CA
+【工具实际输出】
+{"ok": true, "snis": ["c2.attacker-lab.test"], "certificates": []}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 60.45s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+PASS
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #96  —  judge_step(frp_wss.验证_30_秒心跳)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(848 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_wss
+【步骤说明】验证 30 秒心跳
+【调用工具】pcap_detect_heartbeat
+【预期条件】estimated_period_sec in [25, 35] 且 is_periodic == true
+【工具实际输出】
+{"ok": true, "small_packets_count": 71, "buckets_per_second": {"0": 13, "11": 13, "14": 7, "17": 8, "20": 7, "23": 7, "24": 1, "30": 4, "60": 3, "90": 3, "120": 3, "122": 2}, "candidate_periods": [14, 17, 20, 23, 24, 30, 60, 90,
+120, 122], "estimated_period_sec": 0.0, "is_periodic": false}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 5.85s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #97  —  judge_step(frp_wss.确认流量方向反转)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(648 字符)
+你是网络流量审计专家，判断单条工具的执行结果是否满足预期条件。
+
+【当前 skill】frp_wss
+【步骤说明】确认流量方向反转
+【调用工具】pcap_traffic_direction
+【预期条件】ratio > 5
+【工具实际输出】
+{"ok": true, "a_to_b_bytes": 126284, "b_to_a_bytes": 10030, "ratio_b_to_a_over_a_to_b": 0.08, "is_internal_penetration_suspect": false}
+
+【判定规则 - 严格遵守】
+1. 如果工具输出中 ok=false 或包含 error 字段，输出 FAIL
+2. 仔细读取实际输出中的字段值，与预期条件比对
+3. 数值条件（如 "duration > 60"）：在输出里找到对应字段（如 conversations[*].duration_sec），存在 1 条满足即 PASS
+4. 布尔条件（如 "has_frp_alpn == true"）：直接读取对应布尔字段
+5. 列表非空条件（如 "snis 不为空"）：检查列表长度
+6. 「可疑域名」判定：SNI 域名以 .test/.local/.lab/ 结尾，或是动态 DNS（duckdns/no-ip/freedns），或是看起来明显是攻击者生造的（如 c2.xxx），即可视为可疑
+
+【输出格式】
+只输出一个词：PASS 或 FAIL，不要任何其他文字、解释、标点。
+
+
+【调用中...】
+【LLM 完成】耗时 41.31s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+FAIL
+══════════════════════════════════════════════════════════════════════════════
+
+
+══════════════════════════════════════════════════════════════════════════════
+  LLM Call #98  —  final_verdict(audited=frp_tcp,frp_wss)
+══════════════════════════════════════════════════════════════════════════════
+【发送 Prompt】(4096 字符)
+你是网络流量攻击审计专家，专门识别 FRP 内网穿透工具的 6 种传输模式。基于下面的证据给出最终判定。
+
+【流量上下文摘要】
+- anchor 流: 192.168.100.20:46914 -> 192.168.100.10:443 (tcp), duration=122.4597s, orig_bytes=10240, resp_bytes=129024
+- TLS Client Hello: 1 次，SNI=['c2.attacker-lab.test']，JA3=['20b279993ae2e137e62b9647c6d768fb'], Go默认JA3=True, 证书=0 (自签=False)
+- 周期性心跳: 未检出
+- 大字节数据流: 1 个候选
+- 资产记录 (192.168.100.10, source=SIM (sandbox/lab data)): risk_score=9.5, tags=['suspicious_self_signed_cert', 'multiple_non_standard_ports_open', 'frp_indicator_strong']
+  目标端口 443/tcp: service=http, Server=nginx/1.20.1, TLS=true (cert_cn='c2.attacker-lab.test', self_signed=True), 端口标签=['nginx', 'self_signed_cert', 'reverse_proxy_candidate', 'wss_terminator']
+  历史主机名: ['c2.attacker-lab.test']
+
+【FRP 子模式知识库（每种模式的核心识别特征）】
+- frp_tcp: TCP 默认模式（v0.50+ 默认启用 TLS）。识别：Go 默认 JA3 + 30s 精确心跳 + 流量方向反转（resp/orig > 5）。无 hard fingerprint。资产线索：目标端口非标准（非 80/443/22 等常见），server_header 为 unknown，但有自签证书。
+- frp_wss: WebSocket over TLS 模式，必须前置 nginx/caddy 做 TLS 终结。识别：Go 默认 JA3 + 可疑 SNI（非主流域名/.test/动态 DNS）+ 自签证书 + 主动探查 nginx + 30s 心跳。无单一 hard fingerprint，需组合判定。★★★ 资产线索（决定性辅助
+）：目标 IP:443 的 server_header 含 nginx 或 caddy + 自签证书 + 端口标签 reverse_proxy_candidate 或 wss_terminator。
+
+【已审计 skill 列表】
+frp_tcp, frp_wss
+
+【详细证据（按 skill 分组，★★★ 标记为决定性 hard fingerprint）】
+
+[frp_tcp]
+           ✓ PASS  step1 提取 TLS Client Hello（如非常规端口需强制解析）
+           tool=pcap_client_hello_details, expect=存在 Client Hello
+           工具关键输出: {"client_hellos": [{"frame": 1574, "version": "1.0", "cipher_suites": ["TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "T
+           ✓ PASS  step2 JA3 指纹核对
+           tool=pcap_extract_ja3, expect=is_go_default_ja3 == true
+           工具关键输出: {"is_go_default_ja3": true}
+           ✓ PASS  step4 心跳周期检查
+           tool=pcap_detect_heartbeat, expect=estimated_period_sec in [25, 35]
+           工具关键输出: {"is_periodic": true, "estimated_period_sec": 30.0}
+           ✗ FAIL  step5 流量方向反转
+           tool=pcap_traffic_direction, expect=ratio > 5
+           工具关键输出: {"is_internal_penetration_suspect": false}
+
+[frp_wss]
+           ✓ PASS  step1 提取 TLS Client Hello 和 SNI
+           tool=pcap_tls_sni_cert, expect=snis 包含可疑域名（非主流厂商、新注册、动态 DNS）
+           工具关键输出: {"snis": ["c2.attacker-lab.test"]}
+           ✓ PASS  step2 检查 JA3 指纹
+           tool=pcap_extract_ja3, expect=ja3_hashes 中包含 20b279993ae2e137e62b9647c6d768fb，is_go_default_ja3 == true
+           工具关键输出: {"is_go_default_ja3": true}
+           ✗ FAIL  step3 ★ 主动探查目标 IP，识别 nginx
+           tool=active_probe_http_server, expect=is_nginx == true 或 is_caddy == true
+           工具关键输出: {"is_nginx": false}
+           ✓ PASS  step4 证书自签 + SAN 异常检查
+           tool=pcap_tls_sni_cert, expect=certificates[*].is_self_signed == true 或 issuer_cn 是非公开 CA
+           工具关键输出: {"snis": ["c2.attacker-lab.test"]}
+           ✗ FAIL  step5 验证 30 秒心跳
+           tool=pcap_detect_heartbeat, expect=estimated_period_sec in [25, 35] 且 is_periodic == true
+           工具关键输出: {"is_periodic": false, "estimated_period_sec": 0.0}
+           ✗ FAIL  step6 确认流量方向反转
+           tool=pcap_traffic_direction, expect=ratio > 5
+           工具关键输出: {"is_internal_penetration_suspect": false}
+
+【判定规则 - 严格遵守】
+1. 如果任何证据被标注为 ★★★ HARD 且判定为 PASS，则该 skill 必为最终答案，confidence = 1.0
+2. 没有 hard fingerprint 命中时，综合 PASS 数量 + 每个 skill 的"特异性证据"（独有的、其他模式不会 PASS 的步骤）做选择
+3. ★ 资产交叉印证：流量上下文里的「资产记录」是独立于 skill 检测的第三方证据。当 skill 命中的特征与资产标签一致时（如 frp_wss 命中 SNI 可疑 + 资产显示目标 IP:443 是 nginx + 自签证书），confidence 应提升至 ≥ 0.85
+4. frp_tcp 和 frp_tcp_tls 在网络层无法区分（v0.50+ 默认 TLS）；只看见 TCP/TLS 但无 SNI 异常时优先 frp_tcp
+5. frp_wss 必须看到「SNI 可疑域名 + Go JA3 + 443 端口」三者组合；如果资产显示目标 443 是 nginx，则更应判 frp_wss 而非 frp_tcp
+6. frp_ws 必须看到 HTTP URI = /~!frp 才能确认；只有心跳 PASS 不够
+
+【输出格式 - 只输出 JSON，不要任何其他文字】
+{
+  "is_attack": true/false,
+  "attack_type": "intranet_penetration / unknown",
+  "tool": "frp / nps / chisel / unknown",
+  "matched_sub_skill": "frp_xxx (必须是已审计的 skill_id 之一)",
+  "confidence": 0.0-1.0,
+  "reasoning": "为什么选这个 skill（一句话）",
+  "key_evidence": ["证据1", "证据2", "证据3"],
+  "recommended_actions": ["..."]
+}
+
+
+【调用中...】
+【LLM 完成】耗时 61.87s
+
+【无 <think> 标签（模型未输出思考链）】
+
+【模型最终输出】
+{
+  "is_attack": true,
+  "attack_type": "intranet_penetration",
+  "tool": "frp",
+  "matched_sub_skill": "frp_wss",
+  "confidence": 0.9,
+  "reasoning": "根据判定规则 5，目标端口 443 确认为 Nginx 服务时应优先判为 frp_wss，结合资产记录中“nginx+ 自签证书+wss_terminator"标签与 SNI 及 JA3 特征交叉印证，符合规则 3 高置信度要求。",
+  "key_evidence": [
+    "SNI='c2.attacker-lab.test'(High Risk Suspicious Domain)",
+    "Target Port 443 Server=nginx/1.20.1 with Self-Signed Certificate",
+    "JA3 Hash matches Go Default Fingerprint"
+  ],
+  "recommended_actions": [
+    "Block traffic associated with SNI c2.attacker-lab.test",
+    "Isolate internal asset 192.168.100.10 for compliance audit",
+    "Investigate outbound connection logs from 192.168.100.20"
+  ]
+}
+══════════════════════════════════════════════════════════════════════════════
+
+2026-05-19 23:30:54,085 - [WARNING] - JSON 解析失败: Expecting ',' delimiter: line 7 column 97 (char 232), 原始响应: {
+  "is_attack": true,
+  "attack_type": "intranet_penetration",
+  "tool": "frp",
+  "matched_sub_skill": "frp_wss",
+  "confidence": 0.9,
+  "reasoning": "根据判定规则 5，目标端口 443 确认为 Nginx 服务时应优先判为 frp_wss，结合资
+  ✅ 判定: frp_wss (conf=0.40)
+
+================================================================================
+评估汇总
+================================================================================
+#    | pcap                                | expected       | actual         | conf   | 结果
+-----------------------------------------------------------------------------------------------
+#1   | frp_01_tcp_20260516_191209.pcap     | frp_tcp        | frp_tcp        | 0.90   | ✅
+#2   | frp_02_tcp_tls_20260516_201905.pcap | frp_tcp_tls    | frp_tcp        | 0.90   | ✅
+#3   | frp_03_kcp_20260516_202240.pcap     | frp_kcp        | frp_kcp        | 0.90   | ✅
+#4   | frp_04_quic_20260516_203131.pcap    | frp_quic       | frp_quic       | 1.00   | ✅
+#5   | frp_05_ws_20260516_203540.pcap      | frp_ws         | frp_ws         | 1.00   | ✅
+#6   | frp_06_wss_20260516_232753.pcap     | frp_wss        | frp_wss        | 0.40   | ✅
+================================================================================
+💡 准确率: 6 / 6 = 100.0%
+💾 完整结果已保存到 /date/sunchengrui/gyf/frp_evaluation_results.json
+(scr_llm) sunchengrui@ubuntu-SYS-420GP-TNR:/date/sunchengrui/gyf$ tmux capture-pane -pS - > tmux_history.txt
+

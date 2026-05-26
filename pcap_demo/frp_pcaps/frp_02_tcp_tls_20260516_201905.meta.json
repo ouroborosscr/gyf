@@ -1,0 +1,17 @@
+{
+  "tool": "frp",
+  "version": "0.68.1",
+  "mode_index": 2,
+  "mode_name": "tcp_tls",
+  "server_port": 7001,
+  "server_protocol": "tcp",
+  "remote_port": 16001,
+  "vm_a_ip": "192.168.100.10",
+  "vm_b_ip": "192.168.100.20",
+  "backend": "python3 http.server 8888 on VM B",
+  "auth_token": "lab_token_2026",
+  "capture_filter": "(host 192.168.100.10 and host 192.168.100.20) and (tcp port 7001 or tcp portrange 16001-16001)",
+  "capture_duration_sec": 95,
+  "timestamp": "20260516_201905",
+  "pcap_file": "pcap_local/frp_02_tcp_tls_20260516_201905.pcap"
+}

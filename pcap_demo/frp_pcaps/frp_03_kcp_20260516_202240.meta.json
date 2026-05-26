@@ -1,0 +1,17 @@
+{
+  "tool": "frp",
+  "version": "0.68.1",
+  "mode_index": 3,
+  "mode_name": "kcp",
+  "server_port": 7002,
+  "server_protocol": "udp",
+  "remote_port": 16002,
+  "vm_a_ip": "192.168.100.10",
+  "vm_b_ip": "192.168.100.20",
+  "backend": "python3 http.server 8888 on VM B",
+  "auth_token": "lab_token_2026",
+  "capture_filter": "(host 192.168.100.10 and host 192.168.100.20) and (udp port 7002 or tcp portrange 16002-16002)",
+  "capture_duration_sec": 95,
+  "timestamp": "20260516_202240",
+  "pcap_file": "pcap_local/frp_03_kcp_20260516_202240.pcap"
+}

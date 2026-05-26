@@ -1,0 +1,106 @@
+{
+  "doc_id": "frp_internal_penetration",
+  "title": "FRP 内网穿透检测",
+  "category": "intranet_penetration",
+  "tool_name": "frp",
+  "tool_versions_observed": ["0.50+", "0.61.x", "0.68.x"],
+  "github_url": "https://github.com/fatedier/frp",
+
+  "matching_features": {
+    "text_description": "FRP 是 Go 语言编写的反向代理工具，被红队广泛用于内网穿透。frpc（客户端）部署在内网主机上，主动连接公网 frps（服务端），建立反向隧道；外部用户通过 frps 暴露的端口访问到内网服务。所有 frp 流量都展现出强烈的'反向流量不对称'特征：frpc 主动出站长连接（>60s）、上下行流量比 1:10 左右（内网到外网的下行远大于上行）、30秒精确心跳（QUIC 模式为 10秒）。frp 支持六种 transport 协议：TCP、TCP+TLS、KCP、QUIC、WebSocket、WSS。",
+
+    "samples": [
+      {
+        "flow_summary": "客户端 192.168.1.50 主动连接服务器 203.0.113.10:7000，TCP 长连接，持续 30 分钟未断，上行 5KB 下行 50KB，无明显 HTTP/HTTPS 内容",
+        "weight": 0.9
+      },
+      {
+        "flow_summary": "内网主机持续向外部 IP 的 443 端口建立 TLS 长连接，TLS Client Hello 不带 SNI 或带异常域名，JA3 = 2196848d251b217de8b2c037e356c11d",
+        "weight": 0.85
+      },
+      {
+        "flow_summary": "UDP 长连接每 10 秒一对小包（约 60 字节），QUIC 协议，ALPN 字段为 'frp'",
+        "weight": 1.0
+      },
+      {
+        "flow_summary": "HTTP GET 请求 URI 为 /~!frp，Upgrade: websocket，目标为非标准 Web 服务器",
+        "weight": 1.0
+      }
+    ]
+  },
+
+  "common_signatures": {
+    "traffic_direction_ratio": ">5:1（内网主机出站远大于入站）",
+    "session_duration_sec": ">60",
+    "frpc_initiates_connection": true,
+    "heartbeat_period_sec": "30 (KCP/TCP/TLS/WS/WSS) 或 10 (QUIC)",
+    "heartbeat_packet_count_per_burst": "7（KCP 抖动 4-8、QUIC 为 2）",
+    "go_default_ja3_hashes": [
+      "2196848d251b217de8b2c037e356c11d",
+      "20b279993ae2e137e62b9647c6d768fb"
+    ]
+  },
+
+  "preflight_checks": [
+    {
+      "name": "endpoint_purity",
+      "tool": "pcap_endpoints",
+      "expect": "endpoint_count == 2 (理想情况下只有 frpc 和 frps 两个 IP)",
+      "rationale": "若大于 2 可能是抓包污染，需要先用 pcap_extract_subset 隔离会话"
+    },
+    {
+      "name": "traffic_direction",
+      "tool": "pcap_traffic_direction",
+      "expect": "ratio_b_to_a_over_a_to_b > 5",
+      "rationale": "内网穿透的最强宏观特征"
+    },
+    {
+      "name": "long_session",
+      "tool": "pcap_session_duration",
+      "expect": "is_long_session == true",
+      "rationale": "frp 控制连接是长会话"
+    }
+  ],
+
+  "sub_skills": [
+    {"skill_id": "frp_quic", "skill_file": "skills/frp_quic.json", "priority": 1,
+     "reason": "ALPN='frp' 一击必中，最易识别"},
+    {"skill_id": "frp_ws", "skill_file": "skills/frp_ws.json", "priority": 1,
+     "reason": "URI=/~!frp 一击必中，最易识别"},
+    {"skill_id": "frp_kcp", "skill_file": "skills/frp_kcp.json", "priority": 2,
+     "reason": "UDP 长连接 + MTU 满包模式"},
+    {"skill_id": "frp_tcp", "skill_file": "skills/frp_tcp.json", "priority": 3,
+     "reason": "Go 默认 JA3 + 行为特征"},
+    {"skill_id": "frp_tcp_tls", "skill_file": "skills/frp_tcp_tls.json", "priority": 3,
+     "reason": "和 frp_tcp 几乎相同，区别在 transport.tls.force 配置"},
+    {"skill_id": "frp_wss", "skill_file": "skills/frp_wss.json", "priority": 4,
+     "reason": "最难识别，需结合 SNI、JA3、资产探查"}
+  ],
+
+  "doc_gate_hints": {
+    "skip_conditions": [
+      "已有 hard_fingerprint 命中（ALPN=frp 或 URI=/~!frp）→ 跳过当前文档，进入 final_verdict",
+      "已有强证据指向 nps/chisel 等其他工具 → 切换到对应文档"
+    ],
+    "enter_conditions": [
+      "前述工具未给出确定结论",
+      "preflight_checks 多数通过（表明确实疑似 frp 类工具）"
+    ]
+  },
+
+  "verdict_template": {
+    "tool": "frp",
+    "confidence": 0.0,
+    "matched_skill": "",
+    "evidence_summary": [],
+    "key_indicators": {
+      "alpn_frp": null,
+      "ws_path_frp": null,
+      "ja3_go_default": null,
+      "traffic_direction_asymmetric": null,
+      "heartbeat_30s": null,
+      "self_signed_cert": null
+    },
+    "recommended_actions": []
+  }
+}

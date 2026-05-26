@@ -1,0 +1,59 @@
+{
+  "skill_id": "frp_kcp",
+  "title": "FRP KCP 模式检测",
+  "parent_doc": "frp_internal_penetration",
+
+  "matching_features": {
+    "text_description": "FRP KCP 模式在 UDP 上实现可靠传输。KCP 协议为对抗丢包，倾向于把每个数据段填到接近 MTU 大小，因此 KCP 流量呈现独特的'大量 1280-1400 字节 UDP 包'分布（占比 60% 以上）。心跳 30 秒，但因为 KCP 的 ACK 重传机制，每个心跳簇的包数有抖动（4-8 包不等）。",
+    "samples": [
+      {"flow_summary": "UDP 长会话，65% 的包大小在 1390-1400 字节，30秒间隔的小包簇", "weight": 0.9}
+    ]
+  },
+
+  "specific_signatures": {
+    "transport": "UDP",
+    "mtu_packet_pct_min": 60,
+    "typical_packet_size_range": "1280-1400",
+    "heartbeat_period_sec": 30,
+    "heartbeat_packets_per_burst": "4-8 (抖动)",
+    "comment": "KCP 不加密（除非额外配置），但传输内容是 frp 协议而非明文"
+  },
+
+  "detection_workflow": [
+    {
+      "step_id": 1,
+      "step_name": "找 UDP 长会话",
+      "tool": "pcap_conversations",
+      "params": {"proto": "udp"},
+      "expect": "duration > 60s"
+    },
+    {
+      "step_id": 2,
+      "step_name": "包大小分布检查",
+      "tool": "pcap_packet_size_distribution",
+      "params": {},
+      "expect": "mtu_pct > 60"
+    },
+    {
+      "step_id": 3,
+      "step_name": "排除 QUIC（否则容易和 frp_quic 重叠）",
+      "tool": "pcap_quic_handshake",
+      "params": {},
+      "expect": "initial_packets_count == 0",
+      "rationale": "如果探测到 QUIC 初始包，应该切到 frp_quic skill"
+    },
+    {
+      "step_id": 4,
+      "step_name": "心跳周期检查",
+      "tool": "pcap_detect_heartbeat",
+      "params": {},
+      "expect": "estimated_period_sec in [25, 35]"
+    }
+  ],
+
+  "confidence_rules": {
+    "mtu_pct_only": 0.4,
+    "mtu_pct + heartbeat_30s": 0.75,
+    "mtu_pct + heartbeat_30s + direction + no_quic": 0.95
+  }
+}

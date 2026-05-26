@@ -1,0 +1,21 @@
+{
+  "tool": "frp",
+  "version": "0.68.1",
+  "mode_index": 6,
+  "mode_name": "wss",
+  "architecture": "frpc --wss--> nginx:443 (TLS terminator) --ws--> frps:7005",
+  "nginx_listen_port": 443,
+  "frps_bind_port": 7005,
+  "remote_port": 16005,
+  "vm_a_ip": "192.168.100.10",
+  "vm_b_ip": "192.168.100.20",
+  "domain": "c2.attacker-lab.test",
+  "websocket_path": "/~!frp",
+  "tls_cert": "self-signed SAN cert (CN=c2.attacker-lab.test)",
+  "auth_token": "lab_token_2026",
+  "capture_filter": "(host 192.168.100.10 and host 192.168.100.20) and (tcp port 443 or tcp portrange 16005-16005)",
+  "capture_duration_sec": 95,
+  "timestamp": "20260516_232753",
+  "pcap_file": "pcap_local/frp_06_wss_20260516_232753.pcap",
+  "research_note": "WSS requires nginx as TLS terminator. frps cannot handle TLS+WebSocket directly."
+}

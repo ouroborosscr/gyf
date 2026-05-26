@@ -1,0 +1,100 @@
+{
+  "skill_id": "frp_wss",
+  "title": "FRP WSS 模式检测（含 nginx 资产联动）",
+  "parent_doc": "frp_internal_penetration",
+
+  "matching_features": {
+    "text_description": "FRP WSS（WebSocket over TLS）模式是 frp 6 种 transport 中最隐蔽的形式。架构上 frps 本身不支持 TLS+WebSocket 协议栈，必须依赖前置反向代理（典型为 nginx）做 TLS 终结。攻击者在 VPS 上同时部署 nginx + frps，前者监听 443 终结 TLS 并把 /~!frp 路径的 WebSocket 转发给后者。因此 WSS 流量在网络层完全表现为'到 443 端口的标准 HTTPS 流量'，配合自签证书的 SNI 域名，是当前蓝队识别难度最高的 frp 模式。",
+    "samples": [
+      {"flow_summary": "TLS 流量到 443 端口，SNI 是无 PKI 信任的域名（如 c2.attacker-lab.test），JA3 = 20b279993ae2e137e62b9647c6d768fb（Go 标准库默认带 SNI 指纹），服务端证书 CN 与 SNI 匹配但 issuer 是自签 CA", "weight": 0.9},
+      {"flow_summary": "30 秒精确心跳的 443 端口长 TLS 连接，下行流量是上行的 10 倍以上", "weight": 0.85}
+    ]
+  },
+
+  "specific_signatures": {
+    "transport": "TCP",
+    "outer_protocol": "TLS",
+    "inner_protocol": "WebSocket (path: /~!frp, hardcoded in frp source)",
+    "typical_port": 443,
+    "frpc_ja3": "20b279993ae2e137e62b9647c6d768fb",
+    "heartbeat_period_sec": 30,
+    "heartbeat_packets_per_burst": 7,
+    "tls_terminator": "nginx (或 caddy/traefik)",
+    "tls_terminator_evidence_chain": [
+      "目标 IP 探查响应 Server: nginx/x.x.x",
+      "目标域名 PKI 校验失败（自签证书）",
+      "证书 SAN 仅包含可疑域名（如 *.attacker-lab.test）"
+    ]
+  },
+
+  "detection_workflow": [
+    {
+      "step_id": 1,
+      "step_name": "提取 TLS Client Hello 和 SNI",
+      "tool": "pcap_tls_sni_cert",
+      "params": {},
+      "expect": "snis 包含可疑域名（非主流厂商、新注册、动态 DNS）"
+    },
+    {
+      "step_id": 2,
+      "step_name": "检查 JA3 指纹",
+      "tool": "pcap_extract_ja3",
+      "params": {},
+      "expect": "ja3_hashes 中包含 20b279993ae2e137e62b9647c6d768fb，is_go_default_ja3 == true"
+    },
+    {
+      "step_id": 3,
+      "step_name": "★ 主动探查目标 IP，识别 nginx",
+      "tool": "active_probe_http_server",
+      "params": {"target_ip": "$suspect_server_ip", "port": 443},
+      "expect": "is_nginx == true 或 is_caddy == true",
+      "rationale": "FRP WSS 必须配 nginx/caddy 做 TLS 反代；如果目标 IP 探查到的 Server 头是 nginx，结合前述 TLS 特征，确认度显著提升。",
+      "fallback_if_no_internet": "查询本地资产库 query_asset_db(target_ip) 寻找 nginx 部署记录"
+    },
+    {
+      "step_id": 4,
+      "step_name": "证书自签 + SAN 异常检查",
+      "tool": "pcap_tls_sni_cert",
+      "params": {},
+      "expect": "certificates[*].is_self_signed == true 或 issuer_cn 是非公开 CA"
+    },
+    {
+      "step_id": 5,
+      "step_name": "验证 30 秒心跳",
+      "tool": "pcap_detect_heartbeat",
+      "params": {"src_ip": "$frpc_ip", "dst_ip": "$frps_ip"},
+      "expect": "estimated_period_sec in [25, 35] 且 is_periodic == true"
+    },
+    {
+      "step_id": 6,
+      "step_name": "确认流量方向反转",
+      "tool": "pcap_traffic_direction",
+      "params": {"host_a": "$frpc_ip", "host_b": "$frps_ip"},
+      "expect": "ratio > 5"
+    }
+  ],
+
+  "confidence_rules": {
+    "comment": "WSS 没有单一'决定性'指纹，必须组合判定",
+    "ja3_only": 0.3,
+    "ja3 + suspicious_sni": 0.6,
+    "ja3 + suspicious_sni + nginx_probe": 0.85,
+    "ja3 + suspicious_sni + nginx_probe + self_signed": 0.92,
+    "all_above + heartbeat_30s + direction": 0.98,
+    "full_match": 1.0
+  },
+
+  "user_supplement_note": "用户明确提出：'探查资产发现 nginx 也可以作为判断依据'。这是因为 frp v0.68.x 的 WSS transport 设计上不能独立工作，必须由前置反代终结 TLS。因此 WSS 隧道的目标 IP 必然有 nginx/caddy 等反代部署。结合流量层的 TLS 指纹与主动资产探查，可以从'仅靠 JA3+SNI 难以确认'升级到'结合服务端架构特征基本确认'。",
+
+  "blue_team_intelligence": [
+    "WSS 是 frp 配置复杂度最高的模式，能成功部署的攻击者技术水平较高",
+    "WSS 流量在传统流量层几乎无法和正常 HTTPS 区分",
+    "唯一稳定的检测路径是：TLS 指纹库 + 域名信誉 + 主动资产探查 + 行为分析的多源融合",
+    "未来 TLS ECH（Encrypted Client Hello）普及后，SNI 字段将不可见，识别难度会进一步上升"
+  ],
+
+  "detection_rule_examples": {
+    "suricata_ja3": "alert tls any any -> any any (msg:\"FRP-WSS suspect: Go default JA3 + non-PKI SNI\"; ja3.hash; content:\"20b279993ae2e137e62b9647c6d768fb\"; tls.sni; content:!\".\"; classtype:policy-violation; sid:9000003;)",
+    "active_probe_pseudocode": "if tls_flow.ja3 == GO_DEFAULT_WITH_SNI and not pki_trusted(sni): server_info = http_probe(dst_ip, 443); if server_info.is_nginx: confidence += 0.3"
+  }
+}

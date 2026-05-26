@@ -1,0 +1,74 @@
+{
+  "skill_id": "frp_tcp",
+  "title": "FRP TCP 模式检测",
+  "parent_doc": "frp_internal_penetration",
+
+  "matching_features": {
+    "text_description": "FRP TCP 模式（v0.50+ 默认行为）：虽然名为 TCP 模式，但 frp v0.50+ 默认开启 TLS 加密（transport.tls.enable=true）。因此实际网络层流量是 TLS over TCP，与 'TCP+TLS' 模式（仅 frps 端配置 transport.tls.force=true）在网络可观测层面完全相同。区分这两种模式需要看 frps 配置，从流量层无法做到。所有关键指纹（JA3、心跳、流量方向）和 TCP+TLS 模式一致。",
+    "samples": [
+      {"flow_summary": "TCP 长连接到非标准端口（如 7000、8443、随机高端口），首字节是 TLS Record 0x16，JA3 = 2196848d251b217de8b2c037e356c11d（无 SNI）", "weight": 0.85},
+      {"flow_summary": "Go 标准库 TLS 指纹 + 30s 周期心跳 + 流量反向不对称的 3 元组", "weight": 0.9}
+    ]
+  },
+
+  "specific_signatures": {
+    "transport": "TCP",
+    "outer_protocol": "TLS (默认开启)",
+    "ja3_no_sni": "2196848d251b217de8b2c037e356c11d",
+    "ja3_with_sni": "20b279993ae2e137e62b9647c6d768fb",
+    "heartbeat_period_sec": 30,
+    "heartbeat_packets_per_burst": 7,
+    "typical_port": "非标准（7000-7005 默认，但可配置任意）",
+    "wireshark_misidentification": "端口 7000 可能被 Wireshark 误识别为 'gryphon' 协议，分析时需要 -d tcp.port==7000,tls 强制重新解析"
+  },
+
+  "detection_workflow": [
+    {
+      "step_id": 1,
+      "step_name": "提取 TLS Client Hello（如非常规端口需强制解析）",
+      "tool": "pcap_client_hello_details",
+      "params": {"force_port": "$suspect_port"},
+      "expect": "存在 Client Hello"
+    },
+    {
+      "step_id": 2,
+      "step_name": "JA3 指纹核对",
+      "tool": "pcap_extract_ja3",
+      "params": {"force_port": "$suspect_port"},
+      "expect": "is_go_default_ja3 == true"
+    },
+    {
+      "step_id": 3,
+      "step_name": "排除 WSS（如端口 == 443 且有 SNI，应交给 frp_wss）",
+      "rationale": "TCP/TCP+TLS 模式典型不在 443 端口，且通常不带 SNI（连 IP 时）"
+    },
+    {
+      "step_id": 4,
+      "step_name": "心跳周期检查",
+      "tool": "pcap_detect_heartbeat",
+      "params": {},
+      "expect": "estimated_period_sec in [25, 35]"
+    },
+    {
+      "step_id": 5,
+      "step_name": "流量方向反转",
+      "tool": "pcap_traffic_direction",
+      "params": {"host_a": "$frpc_ip", "host_b": "$frps_ip"},
+      "expect": "ratio > 5"
+    }
+  ],
+
+  "confidence_rules": {
+    "ja3_only": 0.4,
+    "ja3 + non_standard_port": 0.55,
+    "ja3 + heartbeat_30s": 0.75,
+    "ja3 + heartbeat_30s + direction_asymmetric": 0.92,
+    "all_above + ja3_no_sni (无域名连接，更可疑)": 0.95
+  },
+
+  "false_positive_warnings": [
+    "其他 Go 编写的工具（Sliver、Caddy 客户端、Go vault client 等）也会展示相同 JA3",
+    "需要结合行为特征（心跳、流量方向）排除合法 Go 应用",
+    "在企业内网，正常的 Go 编写服务（如 Prometheus exporter）也可能命中 JA3 但行为正常"
+  ]
+}

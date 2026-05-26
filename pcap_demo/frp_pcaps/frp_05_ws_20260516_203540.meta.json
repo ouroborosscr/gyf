@@ -1,0 +1,17 @@
+{
+  "tool": "frp",
+  "version": "0.68.1",
+  "mode_index": 5,
+  "mode_name": "ws",
+  "server_port": 7004,
+  "server_protocol": "tcp",
+  "remote_port": 16004,
+  "vm_a_ip": "192.168.100.10",
+  "vm_b_ip": "192.168.100.20",
+  "backend": "python3 http.server 8888 on VM B",
+  "auth_token": "lab_token_2026",
+  "capture_filter": "(host 192.168.100.10 and host 192.168.100.20) and (tcp port 7004 or tcp portrange 16004-16004)",
+  "capture_duration_sec": 95,
+  "timestamp": "20260516_203540",
+  "pcap_file": "pcap_local/frp_05_ws_20260516_203540.pcap"
+}

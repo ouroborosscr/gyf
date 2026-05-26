@@ -29,11 +29,11 @@ def case2_late_capture(state: dict) -> dict:
     orig_hex = streams.get("orig", "")
     resp_hex = streams.get("resp", "")
 
-    # 1. 直接全量扫一遍（orig 扫 CH, resp 扫 SH）
+    # 1. 直接全量扫一遍（orig 扫 CH, resp 扫 SH）（有没有可能扫描出多个ch/sh字段（和别的payload混了）？）
     ch = next((r for r in find_hello_records(orig_hex) if not r.is_server_hello), None)
     sh = next((r for r in find_hello_records(resp_hex) if r.is_server_hello), None)
 
-    # 2. 如果还没找到 CH，借助 ssl.log 的 server_name 在明文里反查
+    # 2. 如果还没找到 CH，借助 ssl.log 的 server_name 在明文里反查（具体先用哪个方法可以让模型选择。如果ssl内容比较少就先用明文反查，如果payload比较短，就全量扫描？或者ch出来后，或有多个ch的时候再让模型判断是否使用域名反查？）
     if not ch:
         ssl_row = find_ssl_by_5tuple(
             state["ssl_collection"],

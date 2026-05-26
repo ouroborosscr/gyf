@@ -1,0 +1,37 @@
+{
+  "skill_id": "frp_tcp_tls",
+  "title": "FRP TCP+TLS 模式检测",
+  "parent_doc": "frp_internal_penetration",
+
+  "matching_features": {
+    "text_description": "FRP 'TCP+TLS' 模式指 frps 端配置了 transport.tls.force=true，强制要求所有客户端连接走 TLS。从网络层抓包看，这与默认 'TCP' 模式（也默认带 TLS）完全无法区分。本 skill 在工作流上和 frp_tcp 相同，差异仅在于 'frps 启用了强制 TLS' 的服务端策略推断。",
+    "samples": [
+      {"flow_summary": "和 frp_tcp 一致：Go 默认 JA3、30s 心跳、流量反向不对称", "weight": 0.85}
+    ]
+  },
+
+  "specific_signatures": {
+    "transport": "TCP",
+    "outer_protocol": "TLS",
+    "frps_policy": "transport.tls.force = true",
+    "ja3_no_sni": "2196848d251b217de8b2c037e356c11d",
+    "ja3_with_sni": "20b279993ae2e137e62b9647c6d768fb",
+    "heartbeat_period_sec": 30,
+    "heartbeat_packets_per_burst": 7
+  },
+
+  "detection_workflow": [
+    {
+      "step_id": 1,
+      "step_name": "复用 frp_tcp 的检测工作流（步骤 1-5）",
+      "comment": "本 skill 在网络层与 frp_tcp 不可区分，结论会合并"
+    }
+  ],
+
+  "confidence_rules": {
+    "comment": "和 frp_tcp 相同；如果蓝队需要区分 force_tls 策略，通常需要主动连接 frps 端口验证（'如果我用明文连接是否被拒绝'）",
+    "delegated_to": "frp_tcp"
+  },
+
+  "doc_gate_hint": "如果 frp_tcp skill 已经给出高置信结论，本 skill 通常应跳过（skip）以避免重复审计。"
+}
